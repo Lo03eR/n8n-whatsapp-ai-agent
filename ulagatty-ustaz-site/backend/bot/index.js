@@ -68,6 +68,16 @@ const L = {
     st_new: "⏳ тексеруде", st_approved: "✅ мақұлданды", st_rejected: "❌ бас тартылды",
     "au.approved": "Мақалаңыз мақұлданды ✅ Жақында жарияланады. Рақмет!",
     "au.rejected": "Өкінішке орай, мақала жарияланбады. Әкімшіге хабарласыңыз.",
+    "adm.price": "💰 Баға", "adm.kaspi": "💳 Kaspi", "adm.broadcast": "📣 Хабарлама",
+    "adm.panel": "Әкімші панелі:",
+    "adm.askprice": "Жаңа бағаны жазыңыз (теңге), тек сан:",
+    "adm.pricesaved": "Баға сақталды ✅",
+    "adm.asknum": "Kaspi нөмірін/картасын жазыңыз:",
+    "adm.askname": "Kaspi иесінің аты-жөнін жазыңыз:",
+    "adm.kaspisaved": "Kaspi деректері сақталды ✅",
+    "adm.askbroadcast": "Барлық қолданушыға жіберілетін хабарламаны жазыңыз:",
+    "adm.sent": "Жіберілді",
+    "adm.only": "Тек әкімшіге.",
   },
   ru: {
     "menu.post": "📝 Опубликовать статью",
@@ -99,6 +109,16 @@ const L = {
     st_new: "⏳ на проверке", st_approved: "✅ одобрена", st_rejected: "❌ отклонена",
     "au.approved": "Ваша статья одобрена ✅ Скоро будет опубликована. Спасибо!",
     "au.rejected": "К сожалению, статья не опубликована. Свяжитесь с администратором.",
+    "adm.price": "💰 Цена", "adm.kaspi": "💳 Kaspi", "adm.broadcast": "📣 Рассылка",
+    "adm.panel": "Панель администратора:",
+    "adm.askprice": "Введите новую цену (тенге), только число:",
+    "adm.pricesaved": "Цена сохранена ✅",
+    "adm.asknum": "Введите номер/карту Kaspi:",
+    "adm.askname": "Введите ФИО владельца Kaspi:",
+    "adm.kaspisaved": "Реквизиты Kaspi сохранены ✅",
+    "adm.askbroadcast": "Введите сообщение для рассылки всем пользователям:",
+    "adm.sent": "Отправлено",
+    "adm.only": "Только администратору.",
   },
 };
 const ALL = (key) => [L.kz[key], L.ru[key]];
@@ -117,6 +137,29 @@ const mainMenu = (lang) => Markup.keyboard([
   [L[lang]["menu.myreq"], L[lang]["menu.lang"]],
   [L[lang]["menu.help"]],
 ]).resize();
+
+const adminMenu = (lang) => Markup.keyboard([
+  [L[lang]["menu.post"]],
+  [L[lang]["adm.price"], L[lang]["adm.kaspi"]],
+  [L[lang]["adm.broadcast"]],
+  [L[lang]["menu.myreq"], L[lang]["menu.lang"], L[lang]["menu.help"]],
+]).resize();
+
+// ---------- настройки портала (цена, реквизиты Kaspi) ----------
+const SETTINGS = "/data/settings.json";
+let settings = { price: "1000", kaspi_number: "+7 700 646 4486", kaspi_name: "" };
+try { settings = { ...settings, ...JSON.parse(fs.readFileSync(SETTINGS, "utf8")) }; } catch {}
+function saveSettings() { try { fs.mkdirSync("/data", { recursive: true }); fs.writeFileSync(SETTINGS, JSON.stringify(settings)); } catch (e) { console.error(e); } }
+
+function payText(lang) {
+  const req = settings.kaspi_name ? ` (${settings.kaspi_name})` : "";
+  return lang === "ru"
+    ? `Оплатите ${settings.price} ₸ на Kaspi:\n💳 ${settings.kaspi_number}${req}\n\nЗатем пришлите чек об оплате PDF-файлом 🧾`
+    : `${settings.price} ₸ төлеңіз. Kaspi:\n💳 ${settings.kaspi_number}${req}\n\nСодан соң төлем чегін PDF файл түрінде жіберіңіз 🧾`;
+}
+
+const isAdmin = (ctx) => !!ADMIN_CHAT && String(ctx.from.id) === String(ADMIN_CHAT);
+const menuFor = (ctx) => (isAdmin(ctx) ? adminMenu : mainMenu)(langOf(ctx));
 
 // ---------- Directus ----------
 async function dFetch(path, opts = {}) {
@@ -185,7 +228,7 @@ const wizard = new Scenes.WizardScene(
   (ctx) => {
     const d = ctx.wizard.state.data;
     if (ctx.message?.photo) d.photo_id = ctx.message.photo[ctx.message.photo.length - 1].file_id;
-    ctx.reply(t(ctx, "ask.check"), Markup.removeKeyboard());
+    ctx.reply(payText(langOf(ctx)), Markup.removeKeyboard());
     return ctx.wizard.next();
   },
   async (ctx) => {
@@ -210,7 +253,7 @@ const wizard = new Scenes.WizardScene(
         }),
       });
       const id = rec.data.id;
-      await ctx.reply(t(ctx, "submitted"), mainMenu(lang));
+      await ctx.reply(t(ctx, "submitted"), menuFor(ctx));
       if (ADMIN_CHAT) {
         const cap = `🆕 Өтініш/Заявка #${id}\n👤 ${d.author_name}\n📞 ${d.author_contact}\n🏷 ${d.category}\n📝 ${d.title}\n\n${(d.body || "").slice(0, 500)}`;
         await ctx.telegram.sendDocument(ADMIN_CHAT, d.check_id, {
@@ -223,13 +266,45 @@ const wizard = new Scenes.WizardScene(
       }
     } catch (e) {
       console.error(e);
-      await ctx.reply(t(ctx, "error"), mainMenu(lang));
+      await ctx.reply(t(ctx, "error"), menuFor(ctx));
     }
     return ctx.scene.leave();
   }
 );
 
-const stage = new Scenes.Stage([wizard]);
+// ---------- админ-сцены: цена, Kaspi, рассылка ----------
+const priceScene = new Scenes.WizardScene("setprice",
+  (ctx) => { if (!isAdmin(ctx)) { ctx.reply(t(ctx, "adm.only")); return ctx.scene.leave(); } ctx.reply(t(ctx, "adm.askprice"), Markup.removeKeyboard()); return ctx.wizard.next(); },
+  (ctx) => {
+    const v = (ctx.message?.text || "").replace(/[^\d]/g, "");
+    if (!v) return ctx.reply(t(ctx, "adm.askprice"));
+    settings.price = v; saveSettings();
+    ctx.reply(t(ctx, "adm.pricesaved") + " (" + v + " ₸)", menuFor(ctx));
+    return ctx.scene.leave();
+  }
+);
+const kaspiScene = new Scenes.WizardScene("setkaspi",
+  (ctx) => { if (!isAdmin(ctx)) { ctx.reply(t(ctx, "adm.only")); return ctx.scene.leave(); } ctx.reply(t(ctx, "adm.asknum"), Markup.removeKeyboard()); return ctx.wizard.next(); },
+  (ctx) => { if (!ctx.message?.text) return ctx.reply(t(ctx, "adm.asknum")); settings.kaspi_number = ctx.message.text.trim(); saveSettings(); ctx.reply(t(ctx, "adm.askname")); return ctx.wizard.next(); },
+  (ctx) => { settings.kaspi_name = (ctx.message?.text || "").trim(); saveSettings(); ctx.reply(t(ctx, "adm.kaspisaved"), menuFor(ctx)); return ctx.scene.leave(); }
+);
+const broadcastScene = new Scenes.WizardScene("broadcast",
+  (ctx) => { if (!isAdmin(ctx)) { ctx.reply(t(ctx, "adm.only")); return ctx.scene.leave(); } ctx.reply(t(ctx, "adm.askbroadcast"), Markup.removeKeyboard()); return ctx.wizard.next(); },
+  async (ctx) => {
+    const msg = ctx.message?.text;
+    if (!msg) return ctx.reply(t(ctx, "adm.askbroadcast"));
+    const ids = Object.keys(users);
+    let sent = 0;
+    for (const uid of ids) {
+      try { await ctx.telegram.sendMessage(uid, msg); sent++; } catch {}
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    ctx.reply(t(ctx, "adm.sent") + ": " + sent + "/" + ids.length, menuFor(ctx));
+    return ctx.scene.leave();
+  }
+);
+
+const stage = new Scenes.Stage([wizard, priceScene, kaspiScene, broadcastScene]);
 const bot = new Telegraf(BOT_TOKEN);
 bot.use(session());
 bot.use(stage.middleware());
@@ -237,15 +312,15 @@ bot.use(stage.middleware());
 // ---------- команды и меню ----------
 bot.start((ctx) => {
   if (!users[ctx.from.id]) setLang(ctx, "kz");
-  ctx.reply(t(ctx, "start"), mainMenu(langOf(ctx)));
+  ctx.reply(t(ctx, "start"), menuFor(ctx));
 });
-bot.command("menu", (ctx) => ctx.reply(t(ctx, "start"), mainMenu(langOf(ctx))));
+bot.command("menu", (ctx) => ctx.reply(t(ctx, "start"), menuFor(ctx)));
 bot.command("post", (ctx) => ctx.scene.enter("submit"));
-bot.command("cancel", (ctx) => ctx.scene.leave().then(() => ctx.reply(t(ctx, "cancelled"), mainMenu(langOf(ctx)))));
+bot.command("cancel", (ctx) => ctx.scene.leave().then(() => ctx.reply(t(ctx, "cancelled"), menuFor(ctx))));
 bot.command("id", (ctx) => ctx.reply(`chat id: ${ctx.chat.id}`));
 
 bot.hears(ALL("menu.post"), (ctx) => ctx.scene.enter("submit"));
-bot.hears(ALL("menu.help"), (ctx) => ctx.reply(t(ctx, "help"), mainMenu(langOf(ctx))));
+bot.hears(ALL("menu.help"), (ctx) => ctx.reply(t(ctx, "help"), menuFor(ctx)));
 bot.hears(ALL("menu.lang"), (ctx) =>
   ctx.reply(t(ctx, "lang.choose"), Markup.inlineKeyboard([
     [Markup.button.callback("Қазақша", "lang:kz"), Markup.button.callback("Русский", "lang:ru")],
@@ -254,25 +329,29 @@ bot.hears(ALL("menu.lang"), (ctx) =>
 bot.action(/^lang:(kz|ru)$/, async (ctx) => {
   setLang(ctx, ctx.match[1]);
   await ctx.answerCbQuery();
-  await ctx.reply(t(ctx, "lang.set"), mainMenu(langOf(ctx)));
+  await ctx.reply(t(ctx, "lang.set"), menuFor(ctx));
 });
 
 bot.hears(ALL("menu.myreq"), async (ctx) => {
   const lang = langOf(ctx);
   try {
     const { data } = await dFetch(`/items/publish_requests?filter[tg_user_id][_eq]=${ctx.from.id}&sort=-id&limit=10&fields=id,title,status`);
-    if (!data.length) return ctx.reply(t(ctx, "my.none"), mainMenu(lang));
+    if (!data.length) return ctx.reply(t(ctx, "my.none"), menuFor(ctx));
     const lines = data.map((r) => `#${r.id} — ${r.title}\n   ${L[lang]["st_" + r.status] || r.status}`);
-    ctx.reply(t(ctx, "my.head") + "\n\n" + lines.join("\n"), mainMenu(lang));
+    ctx.reply(t(ctx, "my.head") + "\n\n" + lines.join("\n"), menuFor(ctx));
   } catch (e) {
     console.error(e);
-    ctx.reply(t(ctx, "error"), mainMenu(lang));
+    ctx.reply(t(ctx, "error"), menuFor(ctx));
   }
 });
 
-// ---------- админ: одобрить/отклонить ----------
-const isAdmin = (ctx) => ADMIN_CHAT && String(ctx.from.id) === String(ADMIN_CHAT);
+// ---------- админ: панель и настройки ----------
+bot.command("admin", (ctx) => { if (isAdmin(ctx)) ctx.reply(t(ctx, "adm.panel"), adminMenu(langOf(ctx))); });
+bot.hears(ALL("adm.price"), (ctx) => { if (isAdmin(ctx)) ctx.scene.enter("setprice"); });
+bot.hears(ALL("adm.kaspi"), (ctx) => { if (isAdmin(ctx)) ctx.scene.enter("setkaspi"); });
+bot.hears(ALL("adm.broadcast"), (ctx) => { if (isAdmin(ctx)) ctx.scene.enter("broadcast"); });
 
+// ---------- админ: одобрить/отклонить ----------
 bot.action(/^ok:(\d+)$/, async (ctx) => {
   if (!isAdmin(ctx)) return ctx.answerCbQuery("Тек әкімшіге / Только админу", { show_alert: true });
   const id = ctx.match[1];
