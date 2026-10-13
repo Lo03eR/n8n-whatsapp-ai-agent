@@ -14,16 +14,18 @@
 
   const navItems = [
     { key: "nav.home", href: "index.html", id: "home" },
-    { key: "nav.courses", href: "courses.html", id: "courses" },
-    { key: "nav.articles", href: "articles.html", id: "articles" },
-    { key: "nav.subscription", href: "subscription.html", id: "subscription" },
-    { key: "nav.certificate", href: "certificate.html", id: "certificate" },
+    { key: "nav.ustaz", href: "category.html?c=ustaz", id: "ustaz" },
+    { key: "nav.school", href: "category.html?c=school", id: "school" },
+    { key: "nav.tarbie", href: "category.html?c=tarbie", id: "tarbie" },
+    { key: "nav.method", href: "category.html?c=method", id: "method" },
     { key: "nav.contact", href: "contact.html", id: "contact" },
   ];
 
   const navLinks = navItems.map(n =>
     `<a href="${n.href}" data-i18n="${n.key}" class="${n.id === page ? "active" : ""}"></a>`
   ).join("");
+
+  const searchSVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>`;
 
   const header = `
   <header class="site-header">
@@ -32,6 +34,10 @@
         <span class="brand__mark">${logoSVG}</span>
         <span class="brand__name">Ұлағатты Ұстаз<small data-i18n="brand.sub"></small></span>
       </a>
+      <form class="hsearch" role="search" onsubmit="return false">
+        ${searchSVG}
+        <input type="search" data-i18n-ph="search.ph" aria-label="search">
+      </form>
       <nav class="nav">${navLinks}</nav>
       <div class="header-actions">
         <div class="lang-switch" role="group" aria-label="Language">
@@ -39,7 +45,7 @@
           <button type="button" data-lang="ru">РУС</button>
         </div>
         <a href="login.html" class="btn btn--ghost" data-i18n="cta.login"></a>
-        <a href="subscription.html" class="btn btn--gold" data-i18n="cta.subscribe"></a>
+        <a href="publish.html" class="btn btn--gold" data-i18n="cta.publish"></a>
         <button class="burger" id="burger" aria-label="Menu"><span></span><span></span><span></span></button>
       </div>
     </div>
@@ -49,7 +55,7 @@
       <button class="mobile-nav__close" id="mClose" aria-label="Close">&times;</button>
       ${navItems.map(n => `<a href="${n.href}" data-i18n="${n.key}" class="${n.id === page ? "active" : ""}"></a>`).join("")}
       <a href="login.html" class="btn btn--ghost" style="margin-top:12px" data-i18n="cta.login"></a>
-      <a href="subscription.html" class="btn btn--gold" data-i18n="cta.subscribe"></a>
+      <a href="publish.html" class="btn btn--gold" data-i18n="cta.publish"></a>
     </div>
   </div>`;
 
@@ -78,17 +84,17 @@
       </div>
       <div class="footer-col">
         <h4 data-i18n="foot.menu"></h4>
-        <a href="index.html" data-i18n="nav.home"></a>
-        <a href="courses.html" data-i18n="nav.courses"></a>
-        <a href="articles.html" data-i18n="nav.articles"></a>
-        <a href="subscription.html" data-i18n="nav.subscription"></a>
+        <a href="category.html?c=ustaz" data-i18n="nav.ustaz"></a>
+        <a href="category.html?c=school" data-i18n="nav.school"></a>
+        <a href="category.html?c=tarbie" data-i18n="nav.tarbie"></a>
+        <a href="category.html?c=method" data-i18n="nav.method"></a>
       </div>
       <div class="footer-col">
         <h4 data-i18n="foot.resources"></h4>
+        <a href="publish.html" data-i18n="cta.publish"></a>
         <a href="certificate.html" data-i18n="nav.certificate"></a>
         <a href="contact.html#faq" data-i18n="foot.help"></a>
         <a href="#" data-i18n="foot.terms"></a>
-        <a href="#" data-i18n="foot.offer"></a>
       </div>
       <div class="footer-col">
         <h4 data-i18n="foot.contacts"></h4>

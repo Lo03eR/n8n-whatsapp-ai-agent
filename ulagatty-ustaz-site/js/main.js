@@ -117,7 +117,72 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /* ---- certificate generator ---- */
   initCertificate();
+
+  /* ---- featured news slider ---- */
+  initSlider();
+
+  /* ---- category page title from ?c= ---- */
+  initCategoryPage();
 });
+
+/* ============================================================
+   Featured slider (Басты жаңалықтар)
+   ============================================================ */
+function initSlider() {
+  const slider = document.getElementById("slider");
+  if (!slider) return;
+  const track = document.getElementById("slides");
+  const slides = track.children;
+  const count = slides.length;
+  const dotsWrap = document.getElementById("slDots");
+  let i = 0, timer;
+
+  for (let k = 0; k < count; k++) {
+    const d = document.createElement("button");
+    d.setAttribute("aria-label", "slide " + (k + 1));
+    if (k === 0) d.classList.add("active");
+    d.addEventListener("click", () => go(k, true));
+    dotsWrap.appendChild(d);
+  }
+  const dots = dotsWrap.children;
+
+  function render() {
+    track.style.transform = `translateX(-${i * 100}%)`;
+    for (let k = 0; k < count; k++) dots[k].classList.toggle("active", k === i);
+  }
+  function go(n, manual) {
+    i = (n + count) % count;
+    render();
+    if (manual) restart();
+  }
+  function next() { go(i + 1); }
+  function prev() { go(i - 1); }
+  function restart() { clearInterval(timer); timer = setInterval(next, 6000); }
+
+  document.getElementById("slNext").addEventListener("click", () => go(i + 1, true));
+  document.getElementById("slPrev").addEventListener("click", () => go(i - 1, true));
+  slider.addEventListener("mouseenter", () => clearInterval(timer));
+  slider.addEventListener("mouseleave", restart);
+  restart();
+}
+
+/* ============================================================
+   Category page — set title/active from ?c=
+   ============================================================ */
+function initCategoryPage() {
+  const titleEl = document.getElementById("catTitle");
+  if (!titleEl) return;
+  const params = new URLSearchParams(location.search);
+  const c = params.get("c") || "all";
+  const map = { ustaz: "sec.ustaz", school: "sec.school", tarbie: "sec.tarbie", method: "sec.method", all: "sec.allnews" };
+  const key = map[c] || "sec.allnews";
+  titleEl.setAttribute("data-i18n", key);
+  const crumb = document.getElementById("catCrumb");
+  if (crumb) crumb.setAttribute("data-i18n", key);
+  // activate matching chip
+  document.querySelectorAll(".chips .chip").forEach(ch => ch.classList.toggle("active", ch.dataset.cat === c));
+  window.applyI18n();
+}
 
 /* ============================================================
    Calendar (current month, with sample events)
