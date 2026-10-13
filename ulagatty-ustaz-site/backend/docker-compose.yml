@@ -39,3 +39,18 @@ services:
     # мягкий лимит памяти под 1 ГБ RAM
     mem_limit: 700m
     mem_reservation: 300m
+
+  # Telegram-бот приёма статей + чека (long polling, публичный адрес не нужен)
+  bot:
+    build: ./bot
+    restart: unless-stopped
+    depends_on:
+      - directus
+    environment:
+      BOT_TOKEN: "${BOT_TOKEN}"
+      ADMIN_CHAT_ID: "${ADMIN_CHAT_ID}"
+      DIRECTUS_URL: "http://directus:8055"
+      DIRECTUS_TOKEN: "${DIRECTUS_TOKEN}"
+      SITE_URL: "${SITE_ORIGIN}"
+    mem_limit: 150m
+    mem_reservation: 60m

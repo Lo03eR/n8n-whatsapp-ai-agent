@@ -26,11 +26,15 @@ ulagatty-ustaz-site/
 ├── data/               # Контент портала (демо/офлайн-источник)
 │   ├── articles.sample.json  # демо-данные (переименуйте экспорт в articles.json)
 │   └── README.md             # как подключить реальные статьи
-├── backend/            # Бэкенд: Directus (CMS = база + API + админка)
-│   ├── docker-compose.yml    # запуск Directus на SQLite (лёгкий, под 1 ГБ RAM)
+├── backend/            # Бэкенд: Directus (CMS = база + API + админка) + бот
+│   ├── docker-compose.yml    # запуск Directus (SQLite) + Telegram-бот
 │   ├── nginx-api.conf        # reverse proxy для api.<домен>
 │   ├── SCHEMA.md             # какие коллекции создать в Directus
-│   └── README.md             # пошаговая установка на VPS
+│   ├── setup-collections.sh  # создать коллекции одной командой
+│   ├── README.md             # пошаговая установка на VPS
+│   └── bot/                  # Telegram-бот (приём статьи + чека)
+│       ├── index.js, Dockerfile, package.json
+│       └── README.md         # как создать бота и протестировать
 └── js/
     ├── config.js       # UU_API — адрес бэкенда (пусто = локальный data/articles.json)
     ├── i18n.js         # Словарь переводов ҚАЗ/РУС

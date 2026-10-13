@@ -38,7 +38,7 @@
     <div class="container header-inner">
       <a class="brand" href="index.html" aria-label="Ұлағатты Ұстаз">
         <span class="brand__mark">${logoSVG}</span>
-        <span class="brand__name">Ұлағатты Ұстаз<small data-i18n="brand.sub"></small></span>
+        <span class="brand__name">Ұлағатты Ұстаз<b style="color:var(--gold,#d4af37)">.kz</b><small data-i18n="brand.sub"></small></span>
       </a>
       <form class="hsearch" role="search" onsubmit="return false">
         ${searchSVG}
@@ -76,7 +76,7 @@
       <div>
         <a class="brand" href="index.html">
           <span class="brand__mark">${logoSVG}</span>
-          <span class="brand__name">Ұлағатты Ұстаз<small data-i18n="brand.sub"></small></span>
+          <span class="brand__name">Ұлағатты Ұстаз<b style="color:var(--gold,#d4af37)">.kz</b><small data-i18n="brand.sub"></small></span>
         </a>
         <p class="fabout" data-i18n="foot.about"></p>
         <div class="socials">
