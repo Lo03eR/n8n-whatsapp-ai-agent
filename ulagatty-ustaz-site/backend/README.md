@@ -37,6 +37,13 @@ nano .env                # заполни KEY, SECRET, ADMIN_EMAIL, ADMIN_PASSWO
 ```
 
 ## 3. Запуск Directus
+Сначала создай папки для данных и отдай их пользователю контейнера (UID 1000),
+иначе Directus не сможет создать файл БД (ошибка `SQLITE_CANTOPEN`):
+```bash
+mkdir -p database uploads extensions
+sudo chown -R 1000:1000 database uploads extensions
+```
+Теперь запуск:
 ```bash
 docker compose up -d
 docker compose logs -f     # дождись "Server started at ...", потом Ctrl+C
