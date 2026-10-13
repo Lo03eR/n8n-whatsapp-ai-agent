@@ -1,23 +1,36 @@
 # SEO — чтобы сайт находили в Google и Яндексе
 
-## 1. Карта сайта (sitemap.xml)
-Генерируется из Directus (статические страницы + все опубликованные статьи)
-и кладётся в корень сайта. Запускай после добавления новых статей:
+## 1. Пререндер статей + карта сайта (ГЛАВНОЕ для индексации)
+`prerender.mjs` создаёт для каждой опубликованной статьи **статическую
+HTML-страницу** с полным текстом и мета-тегами по «чистому» адресу
+`/article/<slug>/`, и заодно пишет `sitemap.xml`. Запускай **после
+публикации новых статей** (и после каждого `deploy.sh`):
 
 ```bash
 cd ~/backend
 docker network ls | grep backend   # обычно backend_default
 docker run --rm --network backend_default \
-  -v "$PWD/sitemap-gen.mjs:/sitemap-gen.mjs:ro" \
+  -v "$PWD/prerender.mjs:/prerender.mjs:ro" \
   -v /var/www/html:/out \
   -e DIRECTUS_URL=http://directus:8055 \
+  -e DIRECTUS_PUBLIC=https://api.ulagattyustaz.kz \
   -e SITE_URL=https://ulagattyustaz.kz \
-  node:20-alpine node /sitemap-gen.mjs
+  -e OUT_DIR=/out \
+  node:20-alpine node /prerender.mjs
 ```
-Проверь: `https://ulagattyustaz.kz/sitemap.xml` и `https://ulagattyustaz.kz/robots.txt`.
+Проверь:
+- статья по чистому адресу: `https://ulagattyustaz.kz/article/<slug>/`
+- `https://ulagattyustaz.kz/sitemap.xml` и `/robots.txt`
 
-> Можно автоматизировать (cron раз в день): добавь строку в `crontab -e`:
-> `0 3 * * * cd ~/backend && docker run --rm --network backend_default -v "$HOME/backend/sitemap-gen.mjs:/sitemap-gen.mjs:ro" -v /var/www/html:/out -e DIRECTUS_URL=http://directus:8055 -e SITE_URL=https://ulagattyustaz.kz node:20-alpine node /sitemap-gen.mjs`
+Поисковик видит готовый HTML с текстом и мета → индексирует по ключевым словам.
+Внутри сайта карточки теперь ведут на `/article/<slug>/`. Старый
+`article.html?slug=` тоже работает (JS-версия, для не-пререндеренных).
+
+> Автоматизация (cron, раз в 30 минут) — `crontab -e`:
+> `*/30 * * * * cd ~/backend && docker run --rm --network backend_default -v "$HOME/backend/prerender.mjs:/prerender.mjs:ro" -v /var/www/html:/out -e DIRECTUS_URL=http://directus:8055 -e DIRECTUS_PUBLIC=https://api.ulagattyustaz.kz -e SITE_URL=https://ulagattyustaz.kz -e OUT_DIR=/out node:20-alpine node /prerender.mjs >/dev/null 2>&1`
+
+> `sitemap-gen.mjs` (без пререндера) остаётся как запасной вариант, но
+> `prerender.mjs` делает и страницы, и sitemap — используйте его.
 
 ## 2. Google Search Console
 1. Зайди на https://search.google.com/search-console → **Добавить ресурс** →

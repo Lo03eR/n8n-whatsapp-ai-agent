@@ -63,9 +63,10 @@
   }
 
   function hrefFor(article) {
-    var key = article.slug ? "slug=" + encodeURIComponent(article.slug)
-                           : "id=" + encodeURIComponent(article.id);
-    return "article.html?" + key;
+    // с бэкендом — «чистые» адреса (их пререндерит backend/prerender.mjs)
+    if (apiBase() && article.slug) return "/article/" + encodeURIComponent(article.slug) + "/";
+    if (article.slug) return "article.html?slug=" + encodeURIComponent(article.slug);
+    return "article.html?id=" + encodeURIComponent(article.id);
   }
 
   var CAL_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>';
@@ -206,6 +207,11 @@
     if (!titleEl) return;
     var params = new URLSearchParams(location.search);
     var slug = params.get("slug"), id = params.get("id");
+    // «чистый» адрес /article/<slug>/ — вытащить slug из пути
+    if (!slug && !id) {
+      var mm = location.pathname.match(/\/article\/([^\/]+)\/?$/);
+      if (mm) slug = decodeURIComponent(mm[1]);
+    }
     var art = null;
     if (slug) art = list.find(function (a) { return a.slug === slug; });
     if (!art && id) art = list.find(function (a) { return String(a.id) === String(id); });
