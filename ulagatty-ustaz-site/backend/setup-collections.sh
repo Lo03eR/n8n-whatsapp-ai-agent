@@ -78,7 +78,8 @@ read -r -d '' ARTICLES <<'JSON' || true
     { "field": "categories", "type": "json", "meta": { "interface": "tags", "special": ["cast-json"], "options": { "placeholder": "Ұстаз, Мектеп тынысы, Тәрбие сағаты, Әдістеме" }, "note": "Категории — те же названия, что на сайте" } },
     { "field": "content", "type": "text", "meta": { "interface": "input-rich-text-html", "note": "Текст статьи" } },
     { "field": "featured_image", "type": "uuid", "meta": { "interface": "file-image", "special": ["file"], "width": "half", "note": "Обложка" } },
-    { "field": "author", "type": "string", "meta": { "interface": "input", "width": "half", "options": { "placeholder": "ФИО автора" } } }
+    { "field": "author", "type": "string", "meta": { "interface": "input", "width": "half", "options": { "placeholder": "ФИО автора" } } },
+    { "field": "views", "type": "integer", "meta": { "interface": "input", "width": "half", "readonly": true, "note": "Счётчик просмотров" }, "schema": { "default_value": 0 } }
   ]
 }
 JSON

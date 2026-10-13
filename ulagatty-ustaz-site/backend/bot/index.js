@@ -264,7 +264,7 @@ bot.action(/^ok:(\d+)$/, async (ctx) => {
     await dFetch("/items/articles", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        status: "draft", title: req.title, slug: slugify(req.title),
+        status: "published", title: req.title, slug: slugify(req.title),
         content: req.body, categories: req.category ? [req.category] : [],
         author: req.author_name, featured_image: req.photo || null,
         date_published: new Date().toISOString(),

@@ -62,6 +62,12 @@
   }
 
   var CAL_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>';
+  var EYE_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+
+  function fmtViews(n) {
+    n = Number(n) || 0;
+    return n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1).replace(".0", "") + "k" : String(n);
+  }
 
   /* media-блок карточки: реальная картинка или градиент-заглушка */
   function media(article, withCat) {
@@ -89,7 +95,9 @@
     a.href = hrefFor(article);
     a.innerHTML = media(article, withCat) +
       '<div class="nbody"><h3>' + stripTags(article.title) + "</h3>" +
-      '<span class="ndate">' + CAL_SVG + fmtDate(article.date) + "</span></div>";
+      '<span class="ndate">' + CAL_SVG + fmtDate(article.date) + "</span>" +
+      '<span class="ndate" style="margin-left:12px" title="просмотры">' + EYE_SVG + fmtViews(article.views) + "</span>" +
+      "</div>";
     return a;
   }
 
@@ -224,6 +232,26 @@
     var body = document.getElementById("artBody");
     if (body) body.innerHTML = art.content_html || ("<p>" + stripTags(art.excerpt_html) + "</p>");
 
+    // просмотры: показать и засчитать +1 (один раз за сессию на статью)
+    var base = apiBase();
+    var vEl = document.getElementById("artViews");
+    var counted = false;
+    if (base && art.id != null) {
+      try {
+        var k = "seen_" + art.id;
+        if (!sessionStorage.getItem(k)) {
+          sessionStorage.setItem(k, "1");
+          counted = true;
+          fetch(base + "/items/articles/" + art.id, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ views: (art.views || 0) + 1 }),
+          }).catch(function () {});
+        }
+      } catch (e) {}
+    }
+    if (vEl) vEl.textContent = fmtViews((art.views || 0) + (counted ? 1 : 0));
+
     // похожие — та же категория, кроме текущей
     var related = list.filter(function (a) { return a !== art && bucketOf(a) === b; }).slice(0, 3);
     if (related.length < 3) {
@@ -252,6 +280,7 @@
       excerpt_html: "",
       content_html: row.content || "",
       featured_image: row.featured_image ? (base + "/assets/" + row.featured_image) : null,
+      views: row.views || 0,
     };
   }
 
@@ -259,7 +288,7 @@
     var url = base + "/items/articles"
       + "?filter[status][_eq]=published"
       + "&sort=-date_published"
-      + "&fields=id,title,slug,date_published,categories,content,featured_image"
+      + "&fields=id,title,slug,date_published,categories,content,featured_image,views"
       + "&limit=500";
     return fetch(url, { cache: "no-store" })
       .then(function (r) { return r.ok ? r.json() : null; })
