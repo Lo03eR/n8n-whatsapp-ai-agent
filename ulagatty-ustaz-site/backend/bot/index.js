@@ -1,165 +1,205 @@
 // ============================================================
-//  Telegram-бот «Ұлағатты Ұстаз.kz» — приём статьи + чека.
+//  Telegram-бот «Ұлағатты Ұстаз.kz»
+//  Меню с кнопками + выбор языка (ҚАЗ/РУС) + подача статьи с чеком.
 //
-//  Поток: автор присылает ФИО → контакт → категорию → тему →
-//  текст (или файл) → фото (необяз.) → чек об оплате.
-//  Заявка сохраняется в Directus (коллекция publish_requests),
-//  файлы заливаются в Directus Files, админу приходит карточка
-//  с кнопками «Опубликовать / Отклонить».
-//  По «Опубликовать» создаётся черновик статьи в коллекции articles.
+//  Кнопки меню: 📝 Жариялау/Опубликовать · 📋 Менің өтініштерім/Мои заявки
+//               🌐 Тіл/Язык · ℹ️ Көмек/Помощь
+//  Язык запоминается для каждого пользователя (/data/users.json).
 //
-//  Работает через long polling — публичный адрес/вебхук НЕ нужен.
-//  Переменные окружения — в .env (см. .env.example).
+//  Поток подачи: ФИО → контакт → категория → тема → текст(или файл)
+//   → фото(необяз.) → чек. Заявка в Directus (publish_requests),
+//   файлы в Directus Files, админу — карточка с кнопками одобрить/отклонить.
+//
+//  Long polling — публичный адрес/вебхук не нужны. ENV см. .env.example.
 // ============================================================
+import fs from "fs";
 import { Telegraf, Scenes, session, Markup } from "telegraf";
 
-const BOT_TOKEN   = process.env.BOT_TOKEN;
-const ADMIN_CHAT  = process.env.ADMIN_CHAT_ID || "";
-const D_URL       = (process.env.DIRECTUS_URL || "http://directus:8055").replace(/\/+$/, "");
-const D_TOKEN     = process.env.DIRECTUS_TOKEN || "";
-const SITE_URL    = (process.env.SITE_URL || "").replace(/\/+$/, "");
+const BOT_TOKEN  = process.env.BOT_TOKEN;
+const ADMIN_CHAT = process.env.ADMIN_CHAT_ID || "";
+const D_URL      = (process.env.DIRECTUS_URL || "http://directus:8055").replace(/\/+$/, "");
+const D_TOKEN    = process.env.DIRECTUS_TOKEN || "";
 
 if (!BOT_TOKEN) { console.error("Нет BOT_TOKEN в .env"); process.exit(1); }
 
 const CATS = ["Ұстаз", "Мектеп тынысы", "Тәрбие сағаты", "Әдістеме"];
 
-// ---------- Directus helpers ----------
+// ---------- тексты (KZ/RU) ----------
+const L = {
+  kz: {
+    "menu.post": "📝 Мақала жариялау",
+    "menu.myreq": "📋 Менің өтініштерім",
+    "menu.lang": "🌐 Тіл",
+    "menu.help": "ℹ️ Көмек",
+    start: "Сәлем! Бұл «Ұлағатты Ұстаз.kz» порталының боты 👋\nТөмендегі батырмаларды қолданыңыз.",
+    help: "Мақала жариялау үшін «📝 Мақала жариялау» батырмасын басыңыз.\nСізден тақырып, мәтін, сурет және төлем чегі сұралады.\nӘкімші растағаннан кейін мақала сайтта жарияланады.\n\nБатырмалар: 📝 жариялау · 📋 өтініштерім · 🌐 тіл · ℹ️ көмек\n/cancel — толтыруды тоқтату.",
+    "lang.choose": "Тілді таңдаңыз:",
+    "lang.set": "Тіл: Қазақша ✅",
+    "ask.name": "Атыңыз-жөніңізді жазыңыз (ФИО):",
+    "ask.contact": "Байланыс (телефон немесе @username):",
+    "ask.cat": "Санатты таңдаңыз:",
+    "ask.title": "Мақала тақырыбын жазыңыз:",
+    "ask.text": "Мақала мәтінін жіберіңіз (мәтінмен немесе Word/PDF файлмен):",
+    "ask.photo": "Мақала суретін жіберіңіз (міндетті емес).",
+    "ask.check": "Соңғы қадам: төлем чегін СУРЕТ түрінде жіберіңіз 🧾",
+    "btn.skip": "⏭ Өткізу",
+    "v.text": "Мәтінмен жазыңыз, өтінемін.",
+    "v.cat": "Батырмалардан санатты таңдаңыз.",
+    "v.textfile": "Мәтін немесе файл жіберіңіз.",
+    "v.check": "Төлем чегін СУРЕТ түрінде жіберіңіз.",
+    processing: "Қабылдадым, тексеріп жатырмын… ⏳",
+    submitted: "Рақмет! Өтінішіңіз қабылданды ✅\nӘкімші тексергеннен кейін хабарласамыз.",
+    error: "Қате кетті 😔 Кейінірек қайталаңыз немесе әкімшіге жазыңыз.",
+    cancelled: "Болдырылмады.",
+    "my.none": "Сізде әзірге өтініш жоқ.",
+    "my.head": "Сіздің өтініштеріңіз:",
+    st_new: "⏳ тексеруде", st_approved: "✅ мақұлданды", st_rejected: "❌ бас тартылды",
+    "au.approved": "Мақалаңыз мақұлданды ✅ Жақында жарияланады. Рақмет!",
+    "au.rejected": "Өкінішке орай, мақала жарияланбады. Әкімшіге хабарласыңыз.",
+  },
+  ru: {
+    "menu.post": "📝 Опубликовать статью",
+    "menu.myreq": "📋 Мои заявки",
+    "menu.lang": "🌐 Язык",
+    "menu.help": "ℹ️ Помощь",
+    start: "Привет! Это бот портала «Ұлағатты Ұстаз.kz» 👋\nПользуйтесь кнопками ниже.",
+    help: "Чтобы опубликовать статью, нажмите «📝 Опубликовать статью».\nБот спросит тему, текст, фото и чек об оплате.\nПосле подтверждения администратором статья появится на сайте.\n\nКнопки: 📝 опубликовать · 📋 мои заявки · 🌐 язык · ℹ️ помощь\n/cancel — остановить заполнение.",
+    "lang.choose": "Выберите язык:",
+    "lang.set": "Язык: Русский ✅",
+    "ask.name": "Напишите ФИО автора:",
+    "ask.contact": "Контакт (телефон или @username):",
+    "ask.cat": "Выберите категорию:",
+    "ask.title": "Напишите тему статьи:",
+    "ask.text": "Пришлите текст статьи (текстом или файлом Word/PDF):",
+    "ask.photo": "Пришлите фото к статье (необязательно).",
+    "ask.check": "Последний шаг: пришлите чек об оплате ФОТО 🧾",
+    "btn.skip": "⏭ Пропустить",
+    "v.text": "Напишите, пожалуйста, текстом.",
+    "v.cat": "Выберите категорию кнопкой.",
+    "v.textfile": "Пришлите текст или файл.",
+    "v.check": "Пришлите чек об оплате ФОТО.",
+    processing: "Принял, проверяю… ⏳",
+    submitted: "Спасибо! Заявка принята ✅\nПосле проверки администратором свяжемся с вами.",
+    error: "Произошла ошибка 😔 Повторите позже или напишите администратору.",
+    cancelled: "Отменено.",
+    "my.none": "У вас пока нет заявок.",
+    "my.head": "Ваши заявки:",
+    st_new: "⏳ на проверке", st_approved: "✅ одобрена", st_rejected: "❌ отклонена",
+    "au.approved": "Ваша статья одобрена ✅ Скоро будет опубликована. Спасибо!",
+    "au.rejected": "К сожалению, статья не опубликована. Свяжитесь с администратором.",
+  },
+};
+const ALL = (key) => [L.kz[key], L.ru[key]];
+
+// ---------- хранилище языка (на пользователя) ----------
+const DATA = "/data/users.json";
+let users = {};
+try { users = JSON.parse(fs.readFileSync(DATA, "utf8")); } catch {}
+function save() { try { fs.mkdirSync("/data", { recursive: true }); fs.writeFileSync(DATA, JSON.stringify(users)); } catch (e) { console.error(e); } }
+const langOf = (ctx) => users[ctx.from.id]?.lang || "kz";
+function setLang(ctx, l) { users[ctx.from.id] = { ...(users[ctx.from.id] || {}), lang: l }; save(); }
+const t = (ctx, key) => L[langOf(ctx)][key];
+
+const mainMenu = (lang) => Markup.keyboard([
+  [L[lang]["menu.post"]],
+  [L[lang]["menu.myreq"], L[lang]["menu.lang"]],
+  [L[lang]["menu.help"]],
+]).resize();
+
+// ---------- Directus ----------
 async function dFetch(path, opts = {}) {
-  const r = await fetch(D_URL + path, {
-    ...opts,
-    headers: { Authorization: `Bearer ${D_TOKEN}`, ...(opts.headers || {}) },
-  });
+  const r = await fetch(D_URL + path, { ...opts, headers: { Authorization: `Bearer ${D_TOKEN}`, ...(opts.headers || {}) } });
   if (!r.ok) throw new Error(`Directus ${r.status}: ${await r.text()}`);
   return r.json();
 }
-
 async function uploadTelegramFile(ctx, fileId, filename) {
-  const link = await ctx.telegram.getFileLink(fileId);           // прямая ссылка на файл в Telegram
-  const resp = await fetch(link.href);
-  const buf  = Buffer.from(await resp.arrayBuffer());
-  const fd   = new FormData();
+  const link = await ctx.telegram.getFileLink(fileId);
+  const buf = Buffer.from(await (await fetch(link.href)).arrayBuffer());
+  const fd = new FormData();
   fd.append("file", new Blob([buf]), filename);
-  const j = await fetch(`${D_URL}/files`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${D_TOKEN}` },
-    body: fd,
-  });
+  const j = await fetch(`${D_URL}/files`, { method: "POST", headers: { Authorization: `Bearer ${D_TOKEN}` }, body: fd });
   if (!j.ok) throw new Error(`Directus upload ${j.status}: ${await j.text()}`);
   return (await j.json()).data.id;
 }
-
 function slugify(s) {
   const base = (s || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
   return (base || "st") + "-" + Date.now().toString(36);
 }
 
-// ---------- Мастер заявки (wizard) ----------
+// ---------- Мастер подачи статьи ----------
 const wizard = new Scenes.WizardScene(
   "submit",
-  // 0. старт
   (ctx) => {
     ctx.wizard.state.data = {};
-    ctx.reply("Атыңыз-жөніңізді жазыңыз (ФИО автора):",
-      Markup.removeKeyboard());
+    ctx.reply(t(ctx, "ask.name"), Markup.removeKeyboard());
     return ctx.wizard.next();
   },
-  // 1. ФИО -> контакт
   (ctx) => {
-    if (!ctx.message?.text) return ctx.reply("Мәтінмен жазыңыз, өтінемін.");
+    if (!ctx.message?.text) return ctx.reply(t(ctx, "v.text"));
     ctx.wizard.state.data.author_name = ctx.message.text.trim();
-    ctx.reply("Байланыс (телефон немесе @username):");
+    ctx.reply(t(ctx, "ask.contact"));
     return ctx.wizard.next();
   },
-  // 2. контакт -> категория
   (ctx) => {
-    if (!ctx.message?.text) return ctx.reply("Мәтінмен жазыңыз, өтінемін.");
+    if (!ctx.message?.text) return ctx.reply(t(ctx, "v.text"));
     ctx.wizard.state.data.author_contact = ctx.message.text.trim();
-    ctx.reply("Санатты таңдаңыз:",
-      Markup.keyboard(CATS.map((c) => [c])).oneTime().resize());
+    ctx.reply(t(ctx, "ask.cat"), Markup.keyboard(CATS.map((c) => [c])).oneTime().resize());
     return ctx.wizard.next();
   },
-  // 3. категория -> тема
   (ctx) => {
-    const t = ctx.message?.text;
-    if (!CATS.includes(t)) return ctx.reply("Батырмалардан санатты таңдаңыз.");
-    ctx.wizard.state.data.category = t;
-    ctx.reply("Мақала тақырыбын жазыңыз:", Markup.removeKeyboard());
+    if (!CATS.includes(ctx.message?.text)) return ctx.reply(t(ctx, "v.cat"));
+    ctx.wizard.state.data.category = ctx.message.text;
+    ctx.reply(t(ctx, "ask.title"), Markup.removeKeyboard());
     return ctx.wizard.next();
   },
-  // 4. тема -> текст/файл
   (ctx) => {
-    if (!ctx.message?.text) return ctx.reply("Тақырыпты мәтінмен жазыңыз.");
+    if (!ctx.message?.text) return ctx.reply(t(ctx, "v.text"));
     ctx.wizard.state.data.title = ctx.message.text.trim();
-    ctx.reply("Мақала мәтінін жіберіңіз (мәтінмен немесе Word/PDF файлмен):");
+    ctx.reply(t(ctx, "ask.text"));
     return ctx.wizard.next();
   },
-  // 5. текст/файл -> фото статьи
-  async (ctx) => {
+  (ctx) => {
     const d = ctx.wizard.state.data;
-    if (ctx.message?.text) {
-      d.body = ctx.message.text.trim();
-    } else if (ctx.message?.document) {
+    if (ctx.message?.text) d.body = ctx.message.text.trim();
+    else if (ctx.message?.document) {
       d.article_file_id = ctx.message.document.file_id;
       d.article_file_name = ctx.message.document.file_name || "article";
-      d.body = ctx.message.caption?.trim() || "(мәтін файлмен жіберілді)";
-    } else {
-      return ctx.reply("Мәтін немесе файл жіберіңіз.");
-    }
-    ctx.reply("Мақала суретін жіберіңіз (міндетті емес).",
-      Markup.keyboard([["⏭ Өткізу"]]).oneTime().resize());
+      d.body = ctx.message.caption?.trim() || "(файл)";
+    } else return ctx.reply(t(ctx, "v.textfile"));
+    ctx.reply(t(ctx, "ask.photo"), Markup.keyboard([[t(ctx, "btn.skip")]]).oneTime().resize());
     return ctx.wizard.next();
   },
-  // 6. фото статьи -> чек
   (ctx) => {
     const d = ctx.wizard.state.data;
-    if (ctx.message?.photo) {
-      d.photo_id = ctx.message.photo[ctx.message.photo.length - 1].file_id;
-    } // «⏭ Өткізу» или любой текст — пропускаем
-    ctx.reply("Соңғы қадам: төлем чегін сурет түрінде жіберіңіз 🧾",
-      Markup.removeKeyboard());
+    if (ctx.message?.photo) d.photo_id = ctx.message.photo[ctx.message.photo.length - 1].file_id;
+    ctx.reply(t(ctx, "ask.check"), Markup.removeKeyboard());
     return ctx.wizard.next();
   },
-  // 7. чек -> сохранить
   async (ctx) => {
     const d = ctx.wizard.state.data;
-    if (!ctx.message?.photo) return ctx.reply("Төлем чегін СУРЕТ түрінде жіберіңіз.");
+    const lang = langOf(ctx);
+    if (!ctx.message?.photo) return ctx.reply(t(ctx, "v.check"));
     d.check_id = ctx.message.photo[ctx.message.photo.length - 1].file_id;
-
-    await ctx.reply("Қабылдадым, тексеріп жатырмын… ⏳");
+    await ctx.reply(t(ctx, "processing"));
     try {
       const payment_proof = await uploadTelegramFile(ctx, d.check_id, "check.jpg");
       let photo = null, article_file = null;
-      if (d.photo_id)        photo = await uploadTelegramFile(ctx, d.photo_id, "photo.jpg");
+      if (d.photo_id) photo = await uploadTelegramFile(ctx, d.photo_id, "photo.jpg");
       if (d.article_file_id) article_file = await uploadTelegramFile(ctx, d.article_file_id, d.article_file_name);
-
       const rec = await dFetch("/items/publish_requests", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          status: "new",
-          author_name: d.author_name,
-          author_contact: d.author_contact,
-          category: d.category,
-          title: d.title,
-          body: d.body,
-          payment_proof,
-          article_file,
-          tg_user_id: String(ctx.from.id),
+          status: "new", author_name: d.author_name, author_contact: d.author_contact,
+          category: d.category, title: d.title, body: d.body,
+          payment_proof, article_file, tg_user_id: String(ctx.from.id),
         }),
       });
       const id = rec.data.id;
-
-      await ctx.reply("Рақмет! Өтінішіңіз қабылданды ✅\nӘкімші тексергеннен кейін хабарласамыз.");
-
-      // карточка админу
+      await ctx.reply(t(ctx, "submitted"), mainMenu(lang));
       if (ADMIN_CHAT) {
-        const caption =
-          `🆕 Жаңа өтініш #${id}\n` +
-          `👤 ${d.author_name}\n📞 ${d.author_contact}\n` +
-          `🏷 ${d.category}\n📝 ${d.title}\n\n` +
-          `${(d.body || "").slice(0, 500)}`;
+        const cap = `🆕 Өтініш/Заявка #${id}\n👤 ${d.author_name}\n📞 ${d.author_contact}\n🏷 ${d.category}\n📝 ${d.title}\n\n${(d.body || "").slice(0, 500)}`;
         await ctx.telegram.sendPhoto(ADMIN_CHAT, d.check_id, {
-          caption,
+          caption: cap,
           ...Markup.inlineKeyboard([
             Markup.button.callback("✅ Жариялау", `ok:${id}`),
             Markup.button.callback("❌ Бас тарту", `no:${id}`),
@@ -168,88 +208,89 @@ const wizard = new Scenes.WizardScene(
       }
     } catch (e) {
       console.error(e);
-      await ctx.reply("Қате кетті 😔 Кейінірек қайталап көріңіз немесе әкімшіге жазыңыз.");
+      await ctx.reply(t(ctx, "error"), mainMenu(lang));
     }
     return ctx.scene.leave();
   }
 );
 
 const stage = new Scenes.Stage([wizard]);
-
 const bot = new Telegraf(BOT_TOKEN);
 bot.use(session());
 bot.use(stage.middleware());
 
-bot.start((ctx) =>
-  ctx.reply(
-    "Сәлем! Бұл «Ұлағатты Ұстаз.kz» порталының боты.\n\n" +
-    "Мақала жариялау үшін /post деп жазыңыз.\n" +
-    "Мен тақырып, мәтін, сурет пен төлем чегін сұраймын, содан соң әкімшіге жіберемін."
-  )
-);
+// ---------- команды и меню ----------
+bot.start((ctx) => {
+  if (!users[ctx.from.id]) setLang(ctx, "kz");
+  ctx.reply(t(ctx, "start"), mainMenu(langOf(ctx)));
+});
+bot.command("menu", (ctx) => ctx.reply(t(ctx, "start"), mainMenu(langOf(ctx))));
 bot.command("post", (ctx) => ctx.scene.enter("submit"));
-bot.command("cancel", (ctx) => ctx.scene.leave().then(() => ctx.reply("Болдырылмады.", Markup.removeKeyboard())));
-// узнать свой chat id (для ADMIN_CHAT_ID)
-bot.command("id", (ctx) => ctx.reply(`Сіздің chat id: ${ctx.chat.id}`));
+bot.command("cancel", (ctx) => ctx.scene.leave().then(() => ctx.reply(t(ctx, "cancelled"), mainMenu(langOf(ctx)))));
+bot.command("id", (ctx) => ctx.reply(`chat id: ${ctx.chat.id}`));
 
-// ---------- Админ: одобрить / отклонить ----------
+bot.hears(ALL("menu.post"), (ctx) => ctx.scene.enter("submit"));
+bot.hears(ALL("menu.help"), (ctx) => ctx.reply(t(ctx, "help"), mainMenu(langOf(ctx))));
+bot.hears(ALL("menu.lang"), (ctx) =>
+  ctx.reply(t(ctx, "lang.choose"), Markup.inlineKeyboard([
+    [Markup.button.callback("Қазақша", "lang:kz"), Markup.button.callback("Русский", "lang:ru")],
+  ]))
+);
+bot.action(/^lang:(kz|ru)$/, async (ctx) => {
+  setLang(ctx, ctx.match[1]);
+  await ctx.answerCbQuery();
+  await ctx.reply(t(ctx, "lang.set"), mainMenu(langOf(ctx)));
+});
+
+bot.hears(ALL("menu.myreq"), async (ctx) => {
+  const lang = langOf(ctx);
+  try {
+    const { data } = await dFetch(`/items/publish_requests?filter[tg_user_id][_eq]=${ctx.from.id}&sort=-id&limit=10&fields=id,title,status`);
+    if (!data.length) return ctx.reply(t(ctx, "my.none"), mainMenu(lang));
+    const lines = data.map((r) => `#${r.id} — ${r.title}\n   ${L[lang]["st_" + r.status] || r.status}`);
+    ctx.reply(t(ctx, "my.head") + "\n\n" + lines.join("\n"), mainMenu(lang));
+  } catch (e) {
+    console.error(e);
+    ctx.reply(t(ctx, "error"), mainMenu(lang));
+  }
+});
+
+// ---------- админ: одобрить/отклонить ----------
 bot.action(/^ok:(\d+)$/, async (ctx) => {
   const id = ctx.match[1];
   try {
     const { data: req } = await dFetch(`/items/publish_requests/${id}`);
-    await dFetch(`/items/publish_requests/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "approved" }),
-    });
-    // создаём черновик статьи
+    await dFetch(`/items/publish_requests/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "approved" }) });
     await dFetch("/items/articles", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
+      method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        status: "draft",
-        title: req.title,
-        slug: slugify(req.title),
-        content: req.body,
-        categories: req.category ? [req.category] : [],
-        author: req.author_name,
-        featured_image: req.article_file ? null : null,
-        date_published: new Date().toISOString(),
+        status: "draft", title: req.title, slug: slugify(req.title),
+        content: req.body, categories: req.category ? [req.category] : [],
+        author: req.author_name, date_published: new Date().toISOString(),
       }),
     });
-    await ctx.answerCbQuery("Жарияланды (черновик жасалды)");
+    await ctx.answerCbQuery("Жарияланды (черновик)");
     await ctx.editMessageCaption((ctx.callbackQuery.message.caption || "") + "\n\n✅ ЖАРИЯЛАНДЫ (черновик)");
     if (req.tg_user_id) {
-      await ctx.telegram.sendMessage(req.tg_user_id,
-        `Мақалаңыз мақұлданды ✅ Жақында жарияланады. Рақмет!`).catch(() => {});
+      const l = users[req.tg_user_id]?.lang || "kz";
+      ctx.telegram.sendMessage(req.tg_user_id, L[l]["au.approved"]).catch(() => {});
     }
-  } catch (e) {
-    console.error(e);
-    await ctx.answerCbQuery("Қате: " + e.message, { show_alert: true });
-  }
+  } catch (e) { console.error(e); await ctx.answerCbQuery("Қате: " + e.message, { show_alert: true }); }
 });
-
 bot.action(/^no:(\d+)$/, async (ctx) => {
   const id = ctx.match[1];
   try {
     const { data: req } = await dFetch(`/items/publish_requests/${id}`);
-    await dFetch(`/items/publish_requests/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "rejected" }),
-    });
+    await dFetch(`/items/publish_requests/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "rejected" }) });
     await ctx.answerCbQuery("Бас тартылды");
     await ctx.editMessageCaption((ctx.callbackQuery.message.caption || "") + "\n\n❌ БАС ТАРТЫЛДЫ");
     if (req.tg_user_id) {
-      await ctx.telegram.sendMessage(req.tg_user_id,
-        `Өкінішке орай, мақала жарияланбады. Әкімшіге хабарласыңыз.`).catch(() => {});
+      const l = users[req.tg_user_id]?.lang || "kz";
+      ctx.telegram.sendMessage(req.tg_user_id, L[l]["au.rejected"]).catch(() => {});
     }
-  } catch (e) {
-    console.error(e);
-    await ctx.answerCbQuery("Қате: " + e.message, { show_alert: true });
-  }
+  } catch (e) { console.error(e); await ctx.answerCbQuery("Қате: " + e.message, { show_alert: true }); }
 });
 
 bot.launch().then(() => console.log("Бот запущен (long polling)"));
-process.once("SIGINT",  () => bot.stop("SIGINT"));
+process.once("SIGINT", () => bot.stop("SIGINT"));
 process.once("SIGTERM", () => bot.stop("SIGTERM"));

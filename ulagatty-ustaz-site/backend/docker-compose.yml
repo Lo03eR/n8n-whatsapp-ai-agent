@@ -46,6 +46,8 @@ services:
     restart: unless-stopped
     depends_on:
       - directus
+    volumes:
+      - ./bot-data:/data            # запоминает язык пользователей
     environment:
       BOT_TOKEN: "${BOT_TOKEN}"
       ADMIN_CHAT_ID: "${ADMIN_CHAT_ID}"
