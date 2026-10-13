@@ -27,6 +27,12 @@
 
   const searchSVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>`;
 
+  // Кнопка «Мақала жариялау» ведёт в бота (Telegram/WhatsApp), если задан
+  // в config.js; иначе — на страницу контактов. Заказ статьи — только в боте.
+  const botUrl = window.UU_BOT_URL || window.UU_WA_URL || "contact.html";
+  const botExternal = !!(window.UU_BOT_URL || window.UU_WA_URL);
+  const botAttr = botExternal ? ' target="_blank" rel="noopener"' : "";
+
   const header = `
   <header class="site-header">
     <div class="container header-inner">
@@ -44,8 +50,7 @@
           <button type="button" data-lang="kz">ҚАЗ</button>
           <button type="button" data-lang="ru">РУС</button>
         </div>
-        <a href="login.html" class="btn btn--ghost" data-i18n="cta.login"></a>
-        <a href="publish.html" class="btn btn--gold" data-i18n="cta.publish"></a>
+        <a href="${botUrl}"${botAttr} class="btn btn--gold" data-i18n="cta.publish"></a>
         <button class="burger" id="burger" aria-label="Menu"><span></span><span></span><span></span></button>
       </div>
     </div>
@@ -54,8 +59,7 @@
     <div class="mobile-nav__panel">
       <button class="mobile-nav__close" id="mClose" aria-label="Close">&times;</button>
       ${navItems.map(n => `<a href="${n.href}" data-i18n="${n.key}" class="${n.id === page ? "active" : ""}"></a>`).join("")}
-      <a href="login.html" class="btn btn--ghost" style="margin-top:12px" data-i18n="cta.login"></a>
-      <a href="publish.html" class="btn btn--gold" data-i18n="cta.publish"></a>
+      <a href="${botUrl}"${botAttr} class="btn btn--gold" style="margin-top:12px" data-i18n="cta.publish"></a>
     </div>
   </div>`;
 
@@ -76,8 +80,8 @@
         </a>
         <p class="fabout" data-i18n="foot.about"></p>
         <div class="socials">
-          <a href="#" aria-label="Telegram">${ic.tg}</a>
-          <a href="#" aria-label="WhatsApp">${ic.wa}</a>
+          <a href="${window.UU_BOT_URL || "#"}"${window.UU_BOT_URL ? ' target="_blank" rel="noopener"' : ""} aria-label="Telegram">${ic.tg}</a>
+          <a href="${window.UU_WA_URL || "#"}"${window.UU_WA_URL ? ' target="_blank" rel="noopener"' : ""} aria-label="WhatsApp">${ic.wa}</a>
           <a href="#" aria-label="Instagram">${ic.ig}</a>
           <a href="#" aria-label="YouTube">${ic.yt}</a>
         </div>
@@ -91,7 +95,7 @@
       </div>
       <div class="footer-col">
         <h4 data-i18n="foot.resources"></h4>
-        <a href="publish.html" data-i18n="cta.publish"></a>
+        <a href="${botUrl}"${botAttr} data-i18n="cta.publish"></a>
         <a href="certificate.html" data-i18n="nav.certificate"></a>
         <a href="contact.html#faq" data-i18n="foot.help"></a>
         <a href="#" data-i18n="foot.terms"></a>
