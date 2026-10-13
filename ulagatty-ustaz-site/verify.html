@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Сертификатты тексеру — Ұлағатты Ұстаз.kz</title>
+<meta name="description" content="Проверка подлинности сертификата по рег. номеру.">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><text y='20' font-size='20'>📘</text></svg>">
+</head>
+<body data-page="verify">
+<div id="site-header"></div>
+
+<section class="page-hero">
+  <div class="container">
+    <div class="breadcrumbs"><a href="index.html" data-i18n="nav.home">Главная</a> / <span>Сертификатты тексеру</span></div>
+    <h1>Сертификатты тексеру / Проверка сертификата</h1>
+  </div>
+</section>
+
+<main class="section">
+  <div class="container" style="max-width:720px">
+    <form id="vForm" class="sidebar-card" style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <input id="vNum" class="field-input" placeholder="Рег. номер (напр. A0001535-02B)"
+             style="flex:1;min-width:220px;padding:12px 14px;border:1px solid var(--line,#d9e2dc);border-radius:12px;font:inherit">
+      <button class="btn btn--primary" type="submit">Тексеру / Проверить</button>
+    </form>
+
+    <div id="vResult" style="margin-top:22px"></div>
+  </div>
+</main>
+
+<div id="site-footer"></div>
+<script src="js/config.js"></script>
+<script src="js/i18n.js"></script>
+<script src="js/layout.js"></script>
+<script src="js/main.js"></script>
+<script>
+(function () {
+  var api = (window.UU_API || "").replace(/\/+$/, "");
+  var box = document.getElementById("vResult");
+  var input = document.getElementById("vNum");
+
+  function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
+  function fmtDate(iso){ if(!iso) return ""; var d=new Date(iso); if(isNaN(d)) return ""; var p=function(n){return String(n).padStart(2,"0");}; return p(d.getDate())+"."+p(d.getMonth()+1)+"."+d.getFullYear(); }
+  var TYPE={cert:"Сертификат",grat:"Благодарность",holiday:"Поздравление"};
+
+  function card(ok, html){
+    box.innerHTML = '<div class="sidebar-card" style="border-left:6px solid '+(ok?"#2aa564":"#e35169")+'">'+html+'</div>';
+  }
+
+  function check(num){
+    num = (num||"").trim();
+    if(!num){ box.innerHTML=""; return; }
+    if(!api){ card(false,"<b>API недоступен.</b> Укажите адрес в js/config.js."); return; }
+    box.innerHTML = '<p style="color:#888">Тексеру... / Проверка...</p>';
+    var url = api + "/items/certificates?filter[number][_eq]=" + encodeURIComponent(num) +
+              "&fields=number,fio,topic,type,date_issued&limit=1";
+    fetch(url).then(function(r){return r.ok?r.json():null;}).then(function(j){
+      var it = j && j.data && j.data[0];
+      if(!it){
+        card(false, '<h3 style="margin:0 0 6px;color:#e35169">❌ Табылмады / Не найден</h3>'+
+          '<p>Осындай нөмірмен сертификат жоқ. / Сертификат с таким номером не найден.</p>');
+        return;
+      }
+      card(true,
+        '<h3 style="margin:0 0 10px;color:#2aa564">✅ Түпнұсқа / Подлинный</h3>'+
+        '<p><b>'+(TYPE[it.type]||"Сертификат")+'</b></p>'+
+        '<p>👤 '+esc(it.fio)+'</p>'+
+        (it.topic?'<p>📝 «'+esc(it.topic)+'»</p>':'')+
+        '<p>№ '+esc(it.number)+'</p>'+
+        '<p>📅 '+fmtDate(it.date_issued)+'</p>');
+    }).catch(function(){ card(false,"<b>Қате / Ошибка.</b> Кейінірек қайталаңыз."); });
+  }
+
+  document.getElementById("vForm").addEventListener("submit", function(e){ e.preventDefault(); check(input.value); });
+  // автозапуск из ?n=
+  var n = new URLSearchParams(location.search).get("n");
+  if(n){ input.value = n; check(n); }
+})();
+</script>
+</body>
+</html>

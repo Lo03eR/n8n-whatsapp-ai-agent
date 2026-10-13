@@ -120,6 +120,30 @@ read -r -d '' REQUESTS <<'JSON' || true
 JSON
 create_collection "publish_requests" "$REQUESTS"
 
+# ---------------- certificates (реестр сертификатов) ----------------
+read -r -d '' CERTS <<'JSON' || true
+{
+  "collection": "certificates",
+  "meta": { "icon": "workspace_premium", "note": "Реестр выданных сертификатов", "sort_field": "date_issued" },
+  "schema": {},
+  "fields": [
+    { "field": "id", "type": "integer", "meta": { "hidden": true, "interface": "input", "readonly": true }, "schema": { "is_primary_key": true, "has_auto_increment": true } },
+    { "field": "number", "type": "string", "meta": { "interface": "input", "readonly": true, "note": "Рег. номер (в QR)" }, "schema": { "is_unique": true } },
+    { "field": "fio", "type": "string", "meta": { "interface": "input", "note": "ФИО" } },
+    { "field": "topic", "type": "string", "meta": { "interface": "input", "note": "Тема материала" } },
+    { "field": "type", "type": "string", "meta": { "interface": "select-dropdown", "width": "half",
+        "options": { "choices": [
+          { "text": "Сертификат", "value": "cert" },
+          { "text": "Благодарность", "value": "grat" },
+          { "text": "Поздравление", "value": "holiday" } ] } },
+      "schema": { "default_value": "cert" } },
+    { "field": "tg_user_id", "type": "string", "meta": { "interface": "input", "width": "half", "readonly": true, "hidden": true } },
+    { "field": "date_issued", "type": "timestamp", "meta": { "interface": "datetime", "special": ["date-created"], "width": "half", "readonly": true } }
+  ]
+}
+JSON
+create_collection "certificates" "$CERTS"
+
 echo ""
 echo "Готово ✅  Коллекции созданы."
 echo ""

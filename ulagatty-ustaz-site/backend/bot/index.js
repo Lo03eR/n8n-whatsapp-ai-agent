@@ -13,12 +13,15 @@
 //  Long polling — публичный адрес/вебхук не нужны. ENV см. .env.example.
 // ============================================================
 import fs from "fs";
+import QRCode from "qrcode";
 import { Telegraf, Scenes, session, Markup } from "telegraf";
+import { makeCertificatePdf, genCertNumber } from "./certificate.mjs";
 
 const BOT_TOKEN  = process.env.BOT_TOKEN;
 const ADMIN_CHAT = process.env.ADMIN_CHAT_ID || "";
 const D_URL      = (process.env.DIRECTUS_URL || "http://directus:8055").replace(/\/+$/, "");
 const D_TOKEN    = process.env.DIRECTUS_TOKEN || "";
+const SITE_URL   = (process.env.SITE_URL || "https://ulagattyustaz.kz").replace(/\/+$/, "");
 
 if (!BOT_TOKEN) { console.error("Нет BOT_TOKEN в .env"); process.exit(1); }
 
@@ -367,14 +370,36 @@ bot.action(/^ok:(\d+)$/, async (ctx) => {
         date_published: new Date().toISOString(),
       }),
     });
-    await ctx.answerCbQuery("Жарияланды (черновик)");
-    await ctx.editMessageCaption((ctx.callbackQuery.message.caption || "") + "\n\n✅ ЖАРИЯЛАНДЫ (черновик)");
+    await ctx.answerCbQuery("Жарияланды");
+    await ctx.editMessageCaption((ctx.callbackQuery.message.caption || "") + "\n\n✅ ЖАРИЯЛАНДЫ");
     if (req.tg_user_id) {
       const l = users[req.tg_user_id]?.lang || "kz";
       ctx.telegram.sendMessage(req.tg_user_id, L[l]["au.approved"]).catch(() => {});
+      // выдать сертификат (PDF) автору
+      try { await issueCertificate(req, l); }
+      catch (e) { console.error("cert error:", e.message); }
     }
   } catch (e) { console.error(e); await ctx.answerCbQuery("Қате: " + e.message, { show_alert: true }); }
 });
+
+// выдача сертификата: запись в реестр + PDF автору
+async function issueCertificate(req, lang) {
+  const number = genCertNumber();
+  const date = new Date().toLocaleDateString(lang === "kz" ? "kk-KZ" : "ru-RU");
+  await dFetch("/items/certificates", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      number, fio: req.author_name, topic: req.title, type: "cert",
+      tg_user_id: req.tg_user_id ? String(req.tg_user_id) : null,
+    }),
+  });
+  const verifyUrl = SITE_URL + "/verify.html?n=" + encodeURIComponent(number);
+  const qrPng = await QRCode.toBuffer(verifyUrl, { margin: 1, width: 300 });
+  const pdf = await makeCertificatePdf({ type: "cert", fio: req.author_name, topic: req.title, number, date, qrPng, lang });
+  await bot.telegram.sendDocument(req.tg_user_id,
+    { source: pdf, filename: "certificate-" + number + ".pdf" },
+    { caption: lang === "ru" ? "Ваш сертификат 🎓" : "Сертификатыңыз 🎓" });
+}
 bot.action(/^no:(\d+)$/, async (ctx) => {
   if (!isAdmin(ctx)) return ctx.answerCbQuery("Тек әкімшіге / Только админу", { show_alert: true });
   const id = ctx.match[1];
