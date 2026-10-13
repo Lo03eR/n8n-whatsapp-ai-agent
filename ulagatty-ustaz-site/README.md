@@ -25,15 +25,28 @@ ulagatty-ustaz-site/
 ├── contact.html        # Контакты + FAQ
 ├── login.html          # Вход / Регистрация
 ├── css/styles.css      # Дизайн-система + компоненты портала (слайдер, карточки, баннеры)
-├── data/               # Контент портала
+├── data/               # Контент портала (демо/офлайн-источник)
 │   ├── articles.sample.json  # демо-данные (переименуйте экспорт в articles.json)
 │   └── README.md             # как подключить реальные статьи
+├── backend/            # Бэкенд: Directus (CMS = база + API + админка)
+│   ├── docker-compose.yml    # запуск Directus на SQLite (лёгкий, под 1 ГБ RAM)
+│   ├── nginx-api.conf        # reverse proxy для api.<домен>
+│   ├── SCHEMA.md             # какие коллекции создать в Directus
+│   └── README.md             # пошаговая установка на VPS
 └── js/
+    ├── config.js       # UU_API — адрес бэкенда (пусто = локальный data/articles.json)
     ├── i18n.js         # Словарь переводов ҚАЗ/РУС
     ├── layout.js       # Общая шапка (логотип, поиск, меню, язык) и подвал
-    ├── content.js      # Наполнение сайта статьями из data/articles.json
+    ├── content.js      # Наполнение сайта статьями (Directus API → иначе data/articles.json)
     └── main.js         # Слайдер, меню, поиск, формы, календарь, генератор сертификата
 ```
+
+## Бэкенд (Directus)
+
+Серверная часть — в папке `backend/` (headless CMS **Directus**: база данных,
+REST API и админка). Сайт берёт статьи из API, если в `js/config.js` задан
+`window.UU_API`; иначе — из локального `data/articles.json`. Установка на
+VPS — `backend/README.md`, список коллекций — `backend/SCHEMA.md`.
 
 ## Реальные статьи (data/articles.json)
 

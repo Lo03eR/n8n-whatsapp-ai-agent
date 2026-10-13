@@ -234,11 +234,56 @@
     if (window.applyI18n) window.applyI18n();
   }
 
-  /* ---- загрузка данных и запуск ---- */
-  function load() {
+  /* ---- загрузка данных: сначала Directus API, иначе локальный JSON ---- */
+  function apiBase() {
+    return (window.UU_API || "").replace(/\/+$/, "");
+  }
+
+  // преобразуем ответ Directus (коллекция articles) в формат сайта
+  function mapDirectus(base, row) {
+    var cats = row.categories;
+    if (!Array.isArray(cats)) cats = cats ? [cats] : [];
+    return {
+      id: row.id,
+      title: stripTags(row.title || ""),
+      slug: row.slug,
+      date: row.date_published || row.date_created,
+      categories: cats,
+      excerpt_html: "",
+      content_html: row.content || "",
+      featured_image: row.featured_image ? (base + "/assets/" + row.featured_image) : null,
+    };
+  }
+
+  function loadFromApi(base) {
+    var url = base + "/items/articles"
+      + "?filter[status][_eq]=published"
+      + "&sort=-date_published"
+      + "&fields=id,title,slug,date_published,date_created,categories,content,featured_image"
+      + "&limit=-1";
+    return fetch(url, { cache: "no-store" })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        if (!j || !Array.isArray(j.data)) return null;
+        return j.data.map(function (row) { return mapDirectus(base, row); });
+      })
+      .catch(function () { return null; });
+  }
+
+  function loadLocal() {
     return fetch("data/articles.json", { cache: "no-store" })
       .then(function (r) { return r.ok ? r.json() : null; })
       .catch(function () { return null; });
+  }
+
+  function load() {
+    var base = apiBase();
+    if (base) {
+      return loadFromApi(base).then(function (list) {
+        return (list && list.length) ? list : loadLocal();
+      });
+    }
+    return loadLocal();
   }
 
   document.addEventListener("DOMContentLoaded", function () {

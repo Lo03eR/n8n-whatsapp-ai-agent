@@ -1,0 +1,41 @@
+# ============================================================
+#  Directus — «движок» портала: база данных + API + админка.
+#  Лёгкая конфигурация под VPS с 1 ГБ RAM: СУБД = SQLite (файл),
+#  отдельный сервер БД не нужен.
+#
+#  Запуск:   cd backend && docker compose up -d
+#  Админка:  http://IP:8055  (или https://api.ulagattyustaz.kz после nginx+SSL)
+#
+#  Значения берутся из файла .env (скопируй .env.example -> .env и заполни).
+# ============================================================
+services:
+  directus:
+    image: directus/directus:11.3.5
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8055:8055"      # наружу не открываем — доступ через nginx
+    volumes:
+      - ./database:/directus/database       # файл SQLite (data.db)
+      - ./uploads:/directus/uploads         # загруженные картинки/файлы
+      - ./extensions:/directus/extensions
+    environment:
+      KEY: "${DIRECTUS_KEY}"
+      SECRET: "${DIRECTUS_SECRET}"
+
+      DB_CLIENT: "sqlite3"
+      DB_FILENAME: "/directus/database/data.db"
+
+      ADMIN_EMAIL: "${ADMIN_EMAIL}"
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD}"
+
+      PUBLIC_URL: "${PUBLIC_URL}"           # напр. https://api.ulagattyustaz.kz
+
+      # CORS — чтобы статический сайт мог читать API с другого домена
+      CORS_ENABLED: "true"
+      CORS_ORIGIN: "${SITE_ORIGIN}"         # напр. https://ulagattyustaz.kz
+
+      # лимит загрузки файлов (чеки/фото статей)
+      FILES_MAX_UPLOAD_SIZE: "25mb"
+    # мягкий лимит памяти под 1 ГБ RAM
+    mem_limit: 700m
+    mem_reservation: 300m
