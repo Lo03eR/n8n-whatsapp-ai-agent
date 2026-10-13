@@ -259,7 +259,7 @@
     var url = base + "/items/articles"
       + "?filter[status][_eq]=published"
       + "&sort=-date_published"
-      + "&fields=id,title,slug,date_published,date_created,categories,content,featured_image"
+      + "&fields=id,title,slug,date_published,categories,content,featured_image"
       + "&limit=500";
     return fetch(url, { cache: "no-store" })
       .then(function (r) { return r.ok ? r.json() : null; })
