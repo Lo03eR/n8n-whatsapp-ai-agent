@@ -111,7 +111,7 @@ read -r -d '' REQUESTS <<'JSON' || true
     { "field": "title", "type": "string", "meta": { "interface": "input", "options": { "placeholder": "Тема статьи" } } },
     { "field": "body", "type": "text", "meta": { "interface": "input-rich-text-html" } },
     { "field": "article_file", "type": "uuid", "meta": { "interface": "file", "special": ["file"], "width": "half", "note": "Файл статьи (если прислали файлом)" } },
-    { "field": "payment_proof", "type": "uuid", "meta": { "interface": "file-image", "special": ["file"], "width": "half", "note": "Чек об оплате" } },
+    { "field": "payment_proof", "type": "uuid", "meta": { "interface": "file", "special": ["file"], "width": "half", "note": "Чек об оплате (PDF)" } },
     { "field": "photo", "type": "uuid", "meta": { "interface": "file-image", "special": ["file"], "width": "half", "note": "Фото статьи (станет обложкой)" } },
     { "field": "tg_user_id", "type": "string", "meta": { "interface": "input", "width": "half", "readonly": true, "note": "Telegram ID автора (для уведомлений бота)" } },
     { "field": "date_created", "type": "timestamp", "meta": { "interface": "datetime", "special": ["date-created"], "width": "half", "readonly": true } }

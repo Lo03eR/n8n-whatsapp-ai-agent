@@ -30,6 +30,13 @@
 
   /* ---- утилиты ---- */
   function stripTags(s) { return (s || "").replace(/<[^>]+>/g, "").trim(); }
+  // безопасный текст для вставки через innerHTML (защита от XSS в заголовках)
+  function esc(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+  function safeTitle(s) { return esc(stripTags(s)); }
 
   function fmtDate(iso) {
     if (!iso) return "";
@@ -94,7 +101,7 @@
     a.className = "news-card reveal";
     a.href = hrefFor(article);
     a.innerHTML = media(article, withCat) +
-      '<div class="nbody"><h3>' + stripTags(article.title) + "</h3>" +
+      '<div class="nbody"><h3>' + safeTitle(article.title) + "</h3>" +
       '<span class="ndate">' + CAL_SVG + fmtDate(article.date) + "</span>" +
       '<span class="ndate" style="margin-left:12px" title="просмотры">' + EYE_SVG + fmtViews(article.views) + "</span>" +
       "</div>";
@@ -118,7 +125,7 @@
         a.href = hrefFor(art);
         a.innerHTML = cover + '<div class="shade"></div><div class="scontent">' +
           '<span class="scat" data-i18n="' + i18nKey + '"></span>' +
-          "<h3>" + stripTags(art.title) + "</h3>" +
+          "<h3>" + safeTitle(art.title) + "</h3>" +
           '<span class="sdate">' + CAL_SVG + fmtDate(art.date) + "</span></div>";
         slides.appendChild(a);
       });
@@ -135,7 +142,7 @@
         var thumb = art.featured_image
           ? '<span class="sthumb" style="background-image:url(\'' + String(art.featured_image).replace(/'/g, "%27") + '\');background-size:cover;background-position:center"></span>'
           : '<span class="sthumb ' + illFor(art) + '"></span>';
-        a.innerHTML = thumb + "<div><h4>" + stripTags(art.title) + '</h4><div class="sdate">' + fmtDate(art.date) + "</div></div>";
+        a.innerHTML = thumb + "<div><h4>" + safeTitle(art.title) + '</h4><div class="sdate">' + fmtDate(art.date) + "</div></div>";
         side.appendChild(a);
       });
     }
@@ -173,7 +180,7 @@
         a.href = hrefFor(art);
         a.style.cssText = "display:flex;gap:10px;align-items:flex-start;text-decoration:none;color:inherit";
         a.innerHTML = '<span class="num">' + (i + 1) + "</span>" +
-          "<div><h4>" + stripTags(art.title) + '</h4><div class="rdate">' + fmtDate(art.date) + "</div></div>";
+          "<div><h4>" + safeTitle(art.title) + '</h4><div class="rdate">' + fmtDate(art.date) + "</div></div>";
         row.appendChild(a);
         box.appendChild(row);
       });
@@ -225,15 +232,27 @@
     var hero = document.getElementById("artHero");
     if (hero) {
       hero.innerHTML = art.featured_image
-        ? '<img src="' + String(art.featured_image).replace(/"/g, "%22") + '" alt="" style="width:100%;height:100%;object-fit:cover;display:block">'
+        ? '<img src="' + String(art.featured_image).replace(/"/g, "%22") + '" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block">'
         : '<div class="cover ' + illFor(art) + '"></div>';
     }
 
     var body = document.getElementById("artBody");
-    if (body) body.innerHTML = art.content_html || ("<p>" + stripTags(art.excerpt_html) + "</p>");
+    var base = apiBase();
+    function showBody(html) {
+      if (!body) return;
+      body.innerHTML = window.DOMPurify ? window.DOMPurify.sanitize(html || "") : (html || "");
+    }
+    if (base && art.id != null && !art.content_html) {
+      // content не тянули в списке — грузим его для этой статьи
+      fetch(base + "/items/articles/" + art.id + "?fields=content", { cache: "no-store" })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (j) { showBody((j && j.data && j.data.content) || ""); })
+        .catch(function () { showBody(""); });
+    } else {
+      showBody(art.content_html || ("<p>" + stripTags(art.excerpt_html) + "</p>"));
+    }
 
     // просмотры: показать и засчитать +1 (один раз за сессию на статью)
-    var base = apiBase();
     var vEl = document.getElementById("artViews");
     var counted = false;
     if (base && art.id != null) {
@@ -288,8 +307,8 @@
     var url = base + "/items/articles"
       + "?filter[status][_eq]=published"
       + "&sort=-date_published"
-      + "&fields=id,title,slug,date_published,categories,content,featured_image,views"
-      + "&limit=500";
+      + "&fields=id,title,slug,date_published,categories,featured_image,views"
+      + "&limit=500";   // content грузим отдельно на странице статьи — быстрее списки
     return fetch(url, { cache: "no-store" })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (j) {

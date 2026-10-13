@@ -22,7 +22,19 @@ const D_TOKEN    = process.env.DIRECTUS_TOKEN || "";
 
 if (!BOT_TOKEN) { console.error("Нет BOT_TOKEN в .env"); process.exit(1); }
 
-const CATS = ["Ұстаз", "Мектеп тынысы", "Тәрбие сағаты", "Әдістеме"];
+// категории: храним каноническое (казахское) значение, показываем по языку
+const CATS = [
+  { kz: "Ұстаз", ru: "Учитель" },
+  { kz: "Мектеп тынысы", ru: "Жизнь школы" },
+  { kz: "Тәрбие сағаты", ru: "Час воспитания" },
+  { kz: "Әдістеме", ru: "Методика" },
+];
+const catKeyboard = (lang) => CATS.map((c) => [c[lang] || c.kz]);
+const canonCat = (text) => { const c = CATS.find((x) => x.kz === text || x.ru === text); return c ? c.kz : null; };
+
+// превратить обычный текст (из Telegram) в безопасный HTML (без тегов пользователя)
+const escHtml = (s) => String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+const textToHtml = (s) => escHtml(s).split(/\n{2,}/).map((p) => "<p>" + p.replace(/\n/g, "<br>") + "</p>").join("");
 
 // ---------- тексты (KZ/RU) ----------
 const L = {
@@ -41,12 +53,12 @@ const L = {
     "ask.title": "Мақала тақырыбын жазыңыз:",
     "ask.text": "Мақала мәтінін жіберіңіз (мәтінмен немесе Word/PDF файлмен):",
     "ask.photo": "Мақала суретін жіберіңіз (міндетті емес).",
-    "ask.check": "Соңғы қадам: төлем чегін СУРЕТ түрінде жіберіңіз 🧾",
+    "ask.check": "Соңғы қадам: төлем чегін PDF файл түрінде жіберіңіз 🧾",
     "btn.skip": "⏭ Өткізу",
     "v.text": "Мәтінмен жазыңыз, өтінемін.",
     "v.cat": "Батырмалардан санатты таңдаңыз.",
     "v.textfile": "Мәтін немесе файл жіберіңіз.",
-    "v.check": "Төлем чегін СУРЕТ түрінде жіберіңіз.",
+    "v.check": "Төлем чегін PDF файл түрінде жіберіңіз.",
     processing: "Қабылдадым, тексеріп жатырмын… ⏳",
     submitted: "Рақмет! Өтінішіңіз қабылданды ✅\nӘкімші тексергеннен кейін хабарласамыз.",
     error: "Қате кетті 😔 Кейінірек қайталаңыз немесе әкімшіге жазыңыз.",
@@ -72,12 +84,12 @@ const L = {
     "ask.title": "Напишите тему статьи:",
     "ask.text": "Пришлите текст статьи (текстом или файлом Word/PDF):",
     "ask.photo": "Пришлите фото к статье (необязательно).",
-    "ask.check": "Последний шаг: пришлите чек об оплате ФОТО 🧾",
+    "ask.check": "Последний шаг: пришлите чек об оплате PDF-файлом 🧾",
     "btn.skip": "⏭ Пропустить",
     "v.text": "Напишите, пожалуйста, текстом.",
     "v.cat": "Выберите категорию кнопкой.",
     "v.textfile": "Пришлите текст или файл.",
-    "v.check": "Пришлите чек об оплате ФОТО.",
+    "v.check": "Пришлите чек об оплате PDF-файлом.",
     processing: "Принял, проверяю… ⏳",
     submitted: "Спасибо! Заявка принята ✅\nПосле проверки администратором свяжемся с вами.",
     error: "Произошла ошибка 😔 Повторите позже или напишите администратору.",
@@ -143,12 +155,13 @@ const wizard = new Scenes.WizardScene(
   (ctx) => {
     if (!ctx.message?.text) return ctx.reply(t(ctx, "v.text"));
     ctx.wizard.state.data.author_contact = ctx.message.text.trim();
-    ctx.reply(t(ctx, "ask.cat"), Markup.keyboard(CATS.map((c) => [c])).oneTime().resize());
+    ctx.reply(t(ctx, "ask.cat"), Markup.keyboard(catKeyboard(langOf(ctx))).oneTime().resize());
     return ctx.wizard.next();
   },
   (ctx) => {
-    if (!CATS.includes(ctx.message?.text)) return ctx.reply(t(ctx, "v.cat"));
-    ctx.wizard.state.data.category = ctx.message.text;
+    const canon = canonCat(ctx.message?.text);
+    if (!canon) return ctx.reply(t(ctx, "v.cat"));
+    ctx.wizard.state.data.category = canon;
     ctx.reply(t(ctx, "ask.title"), Markup.removeKeyboard());
     return ctx.wizard.next();
   },
@@ -178,11 +191,13 @@ const wizard = new Scenes.WizardScene(
   async (ctx) => {
     const d = ctx.wizard.state.data;
     const lang = langOf(ctx);
-    if (!ctx.message?.photo) return ctx.reply(t(ctx, "v.check"));
-    d.check_id = ctx.message.photo[ctx.message.photo.length - 1].file_id;
+    // чек принимаем ТОЛЬКО как файл (PDF/документ)
+    if (!ctx.message?.document) return ctx.reply(t(ctx, "v.check"));
+    d.check_id = ctx.message.document.file_id;
+    d.check_name = ctx.message.document.file_name || "check.pdf";
     await ctx.reply(t(ctx, "processing"));
     try {
-      const payment_proof = await uploadTelegramFile(ctx, d.check_id, "check.jpg");
+      const payment_proof = await uploadTelegramFile(ctx, d.check_id, d.check_name);
       let photo = null, article_file = null;
       if (d.photo_id) photo = await uploadTelegramFile(ctx, d.photo_id, "photo.jpg");
       if (d.article_file_id) article_file = await uploadTelegramFile(ctx, d.article_file_id, d.article_file_name);
@@ -198,7 +213,7 @@ const wizard = new Scenes.WizardScene(
       await ctx.reply(t(ctx, "submitted"), mainMenu(lang));
       if (ADMIN_CHAT) {
         const cap = `🆕 Өтініш/Заявка #${id}\n👤 ${d.author_name}\n📞 ${d.author_contact}\n🏷 ${d.category}\n📝 ${d.title}\n\n${(d.body || "").slice(0, 500)}`;
-        await ctx.telegram.sendPhoto(ADMIN_CHAT, d.check_id, {
+        await ctx.telegram.sendDocument(ADMIN_CHAT, d.check_id, {
           caption: cap,
           ...Markup.inlineKeyboard([
             Markup.button.callback("✅ Жариялау", `ok:${id}`),
@@ -256,7 +271,10 @@ bot.hears(ALL("menu.myreq"), async (ctx) => {
 });
 
 // ---------- админ: одобрить/отклонить ----------
+const isAdmin = (ctx) => ADMIN_CHAT && String(ctx.from.id) === String(ADMIN_CHAT);
+
 bot.action(/^ok:(\d+)$/, async (ctx) => {
+  if (!isAdmin(ctx)) return ctx.answerCbQuery("Тек әкімшіге / Только админу", { show_alert: true });
   const id = ctx.match[1];
   try {
     const { data: req } = await dFetch(`/items/publish_requests/${id}`);
@@ -265,7 +283,7 @@ bot.action(/^ok:(\d+)$/, async (ctx) => {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         status: "published", title: req.title, slug: slugify(req.title),
-        content: req.body, categories: req.category ? [req.category] : [],
+        content: textToHtml(req.body), categories: req.category ? [req.category] : [],
         author: req.author_name, featured_image: req.photo || null,
         date_published: new Date().toISOString(),
       }),
@@ -279,6 +297,7 @@ bot.action(/^ok:(\d+)$/, async (ctx) => {
   } catch (e) { console.error(e); await ctx.answerCbQuery("Қате: " + e.message, { show_alert: true }); }
 });
 bot.action(/^no:(\d+)$/, async (ctx) => {
+  if (!isAdmin(ctx)) return ctx.answerCbQuery("Тек әкімшіге / Только админу", { show_alert: true });
   const id = ctx.match[1];
   try {
     const { data: req } = await dFetch(`/items/publish_requests/${id}`);
