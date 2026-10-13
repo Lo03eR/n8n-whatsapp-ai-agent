@@ -13,9 +13,12 @@ SRC="$(cd "$(dirname "$0")" && pwd)"
 
 echo "→ Сайт → /var/www/html"
 sudo mkdir -p /var/www/html
+# сохранить сгенерированный sitemap.xml (его создаёт sitemap-gen, его нет в репо)
+[ -f /var/www/html/sitemap.xml ] && sudo cp /var/www/html/sitemap.xml /tmp/uu_sitemap.xml
 sudo rm -rf /var/www/html/*
 sudo cp -r "$SRC"/* /var/www/html/
 sudo rm -rf /var/www/html/backend /var/www/html/deploy.sh /var/www/html/tools
+[ -f /tmp/uu_sitemap.xml ] && sudo mv /tmp/uu_sitemap.xml /var/www/html/sitemap.xml
 sudo chown -R www-data:www-data /var/www/html
 
 echo "→ Код бэкенда → ~/backend (кроме .env и данных)"

@@ -215,8 +215,31 @@
     var b = bucketOf(art);
     var i18nKey = { ustaz: "sec.ustaz", school: "sec.school", tarbie: "sec.tarbie", method: "sec.method", other: "sec.allnews" }[b];
 
-    document.title = stripTags(art.title) + " — Ұлағатты Ұстаз";
+    document.title = stripTags(art.title) + " — Ұлағатты Ұстаз.kz";
     titleEl.textContent = stripTags(art.title);
+
+    // ---- SEO: мета-теги под конкретную статью ----
+    var plainTitle = stripTags(art.title);
+    var descText = stripTags(art.excerpt_html || art.content_html || "").slice(0, 180);
+    var pageUrl = "https://ulagattyustaz.kz/article.html?slug=" + encodeURIComponent(art.slug || "");
+    var setAttr = function (id, attr, val) { var el = document.getElementById(id); if (el) el.setAttribute(attr, val); };
+    setAttr("metaDesc", "content", descText || plainTitle);
+    setAttr("metaCanonical", "href", pageUrl);
+    setAttr("ogTitle", "content", plainTitle);
+    setAttr("ogDesc", "content", descText || plainTitle);
+    setAttr("ogUrl", "content", pageUrl);
+    if (art.featured_image) setAttr("ogImage", "content", art.featured_image);
+    try {
+      var ld = { "@context": "https://schema.org", "@type": "NewsArticle",
+        headline: plainTitle, datePublished: art.date || undefined,
+        author: { "@type": "Person", name: "Ұлағатты Ұстаз.kz" },
+        publisher: { "@type": "Organization", name: "Ұлағатты Ұстаз.kz" },
+        mainEntityOfPage: pageUrl };
+      if (art.featured_image) ld.image = [art.featured_image];
+      var s = document.createElement("script");
+      s.type = "application/ld+json"; s.textContent = JSON.stringify(ld);
+      document.head.appendChild(s);
+    } catch (e) {}
 
     var crumb = document.getElementById("artCrumb");
     if (crumb) crumb.textContent = stripTags(art.title).slice(0, 40);
