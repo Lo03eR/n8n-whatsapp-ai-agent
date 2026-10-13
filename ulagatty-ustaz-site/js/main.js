@@ -137,6 +137,11 @@ function initSlider() {
   const dotsWrap = document.getElementById("slDots");
   let i = 0, timer;
 
+  // stop any timer left by a previous init before we rebuild
+  if (window.__uuSliderTimer) clearInterval(window.__uuSliderTimer);
+  if (!count) return;
+
+  dotsWrap.innerHTML = "";
   for (let k = 0; k < count; k++) {
     const d = document.createElement("button");
     d.setAttribute("aria-label", "slide " + (k + 1));
@@ -156,15 +161,27 @@ function initSlider() {
     if (manual) restart();
   }
   function next() { go(i + 1); }
-  function prev() { go(i - 1); }
-  function restart() { clearInterval(timer); timer = setInterval(next, 6000); }
+  function restart() { clearInterval(timer); timer = setInterval(next, 6000); window.__uuSliderTimer = timer; }
 
-  document.getElementById("slNext").addEventListener("click", () => go(i + 1, true));
-  document.getElementById("slPrev").addEventListener("click", () => go(i - 1, true));
-  slider.addEventListener("mouseenter", () => clearInterval(timer));
-  slider.addEventListener("mouseleave", restart);
+  // clone arrow buttons to drop any listeners from a previous init
+  let nextBtn = document.getElementById("slNext");
+  let prevBtn = document.getElementById("slPrev");
+  nextBtn.replaceWith(nextBtn.cloneNode(true)); nextBtn = document.getElementById("slNext");
+  prevBtn.replaceWith(prevBtn.cloneNode(true)); prevBtn = document.getElementById("slPrev");
+  nextBtn.addEventListener("click", () => go(i + 1, true));
+  prevBtn.addEventListener("click", () => go(i - 1, true));
+
+  // hover pause/resume — bound once, delegates to the latest controls
+  window.__uuSliderCtl = { pause: () => clearInterval(timer), resume: restart };
+  if (!slider.dataset.bound) {
+    slider.addEventListener("mouseenter", () => window.__uuSliderCtl.pause());
+    slider.addEventListener("mouseleave", () => window.__uuSliderCtl.resume());
+    slider.dataset.bound = "1";
+  }
+  render();
   restart();
 }
+window.UU_initSlider = initSlider;
 
 /* ============================================================
    Category page — set title/active from ?c=
