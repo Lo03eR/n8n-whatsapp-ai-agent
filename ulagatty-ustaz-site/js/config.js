@@ -11,6 +11,6 @@
        window.UU_BOT_URL = "https://t.me/ulagatty_bot";
        window.UU_WA_URL  = "https://wa.me/77006464486";
    ============================================================ */
-window.UU_API = "";
-window.UU_BOT_URL = "";
-window.UU_WA_URL = "";
+window.UU_API = "https://api.ulagattyustaz.kz";
+window.UU_BOT_URL = "";                       // впиши ссылку на бота: https://t.me/ИМЯ_бота
+window.UU_WA_URL = "https://wa.me/77006464486";
