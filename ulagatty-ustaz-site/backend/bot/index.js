@@ -191,7 +191,7 @@ const wizard = new Scenes.WizardScene(
         body: JSON.stringify({
           status: "new", author_name: d.author_name, author_contact: d.author_contact,
           category: d.category, title: d.title, body: d.body,
-          payment_proof, article_file, tg_user_id: String(ctx.from.id),
+          payment_proof, article_file, photo, tg_user_id: String(ctx.from.id),
         }),
       });
       const id = rec.data.id;
@@ -266,7 +266,8 @@ bot.action(/^ok:(\d+)$/, async (ctx) => {
       body: JSON.stringify({
         status: "draft", title: req.title, slug: slugify(req.title),
         content: req.body, categories: req.category ? [req.category] : [],
-        author: req.author_name, date_published: new Date().toISOString(),
+        author: req.author_name, featured_image: req.photo || null,
+        date_published: new Date().toISOString(),
       }),
     });
     await ctx.answerCbQuery("Жарияланды (черновик)");
