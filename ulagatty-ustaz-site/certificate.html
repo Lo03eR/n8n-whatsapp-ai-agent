@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Сертификат генераторы — Ұлағатты Ұстаз</title>
+<meta name="description" content="Бірегей нөмірмен сертификат, алғыс хат және мерекелік құттықтау жасау.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+<noscript><style>.reveal{opacity:1;transform:none}</style></noscript>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><text y='20' font-size='20'>🎓</text></svg>">
+<style>
+  @media print {
+    .site-header, .site-footer, .page-hero, .cert-form, .cert-actions, .mobile-nav { display: none !important; }
+    body { background: #fff; }
+    #certResult { display: block !important; box-shadow: none; }
+    .cert-paper { box-shadow: none; }
+  }
+</style>
+</head>
+<body data-page="certificate">
+<div id="site-header"></div>
+
+<section class="page-hero">
+  <svg class="page-hero__orn" viewBox="0 0 1440 300" preserveAspectRatio="xMidYMid slice" aria-hidden="true"><g fill="none" stroke="#2aa564" stroke-width="2" opacity=".4"><path d="M1050 70 q60 -60 120 0 q60 60 120 0 q60 -60 120 0"/></g><g fill="#d4af37" opacity=".3"><circle cx="120" cy="80" r="5"/><circle cx="1340" cy="200" r="5"/></g></svg>
+  <div class="container">
+    <div class="breadcrumbs"><a href="index.html" data-i18n="nav.home"></a> / <span data-i18n="nav.certificate"></span></div>
+    <h1 data-i18n="certpage.title"></h1>
+    <p data-i18n="certpage.lead"></p>
+  </div>
+</section>
+
+<section class="section">
+  <div class="container">
+    <div class="cert-demo">
+      <!-- form -->
+      <div class="card cert-form reveal" style="padding:28px">
+        <div class="field"><label data-i18n="cert.fio"></label><input id="certFio" type="text" placeholder="Жадыра Әуелбек"></div>
+        <div class="field"><label data-i18n="cert.topic"></label><input id="certTopic" type="text" placeholder="Тәрбиеші – бала жүрегіне жол табатын маман"></div>
+        <div class="form-row">
+          <div class="field"><label data-i18n="cert.work"></label><input id="certWork" type="text" placeholder="«Аянат-сұлу» балабақшасы"></div>
+          <div class="field"><label data-i18n="cert.region"></label><input id="certRegion" type="text" placeholder="Жетісай ауданы, Түркістан облысы"></div>
+        </div>
+        <div class="field">
+          <label data-i18n="cert.type"></label>
+          <select id="certType">
+            <option value="cert" data-i18n="cert.type.cert"></option>
+            <option value="grat" data-i18n="cert.type.grat"></option>
+            <option value="holiday" data-i18n="cert.type.holiday"></option>
+          </select>
+        </div>
+        <p class="field hint" data-i18n="cert.unique" style="margin-top:0"></p>
+        <button id="certGen" class="btn btn--primary btn--block btn--lg" data-i18n="cert.gen"></button>
+      </div>
+
+      <!-- preview -->
+      <div class="reveal">
+        <div id="certResult" style="display:none">
+          <div class="cert-paper">
+            <div class="cert-border"></div>
+            <div class="cert-corner"></div>
+            <img id="certQr" class="cert-qr" alt="QR">
+            <div class="cert-content">
+              <div id="certPortal" class="cert-portal"></div>
+              <div id="certTitle" class="cert-title">CERTIFICATE</div>
+              <div id="certNameOut" class="cert-name"></div>
+              <div id="certConfirm" class="cert-for"></div>
+              <div id="certTopicOut" class="cert-topic"></div>
+              <div class="cert-meta">
+                <div id="certWorkOut"></div>
+                <div id="certDateOut"></div>
+                <div id="certNoOut" class="cert-no"></div>
+              </div>
+            </div>
+          </div>
+          <div class="cert-actions" style="margin-top:18px;text-align:center">
+            <button id="certPrint" class="btn btn--gold btn--lg" data-i18n="cert.print"></button>
+          </div>
+        </div>
+        <div id="certPlaceholder" class="card" style="padding:40px;text-align:center;color:var(--muted);display:grid;place-items:center;min-height:300px">
+          <div>
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="var(--green-500)" stroke-width="1.4" style="margin:0 auto 14px"><path d="M12 15l-3 6 3-1.5L15 21l-3-6"/><circle cx="12" cy="9" r="7"/><path d="M12 6v3l2 1"/></svg>
+            <p data-i18n="certpage.lead"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div id="site-footer"></div>
+<script src="js/i18n.js"></script>
+<script src="js/layout.js"></script>
+<script src="js/main.js"></script>
+<script>
+  // hide placeholder once a certificate is generated
+  document.getElementById("certGen").addEventListener("click", () => {
+    const ph = document.getElementById("certPlaceholder");
+    if (ph) ph.style.display = "none";
+  });
+</script>
+</body>
+</html>

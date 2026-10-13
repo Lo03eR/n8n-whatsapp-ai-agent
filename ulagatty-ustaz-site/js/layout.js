@@ -1,0 +1,113 @@
+/* ============================================================
+   layout.js — injects shared header & footer on every page.
+   Works on file:// (no fetch). Reads <body data-page="...">.
+   ============================================================ */
+(function () {
+  const page = document.body.getAttribute("data-page") || "home";
+
+  const logoSVG = `
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M12 3l8 4-8 4-8-4 8-4z" fill="#fff" opacity=".95"/>
+      <path d="M5 9v4.5c0 1.7 3.1 3.5 7 3.5s7-1.8 7-3.5V9" stroke="#fff" stroke-width="1.6" stroke-linecap="round" fill="none"/>
+      <circle cx="12" cy="18.5" r="1.1" fill="#ffd97a"/>
+    </svg>`;
+
+  const navItems = [
+    { key: "nav.home", href: "index.html", id: "home" },
+    { key: "nav.courses", href: "courses.html", id: "courses" },
+    { key: "nav.articles", href: "articles.html", id: "articles" },
+    { key: "nav.subscription", href: "subscription.html", id: "subscription" },
+    { key: "nav.certificate", href: "certificate.html", id: "certificate" },
+    { key: "nav.contact", href: "contact.html", id: "contact" },
+  ];
+
+  const navLinks = navItems.map(n =>
+    `<a href="${n.href}" data-i18n="${n.key}" class="${n.id === page ? "active" : ""}"></a>`
+  ).join("");
+
+  const header = `
+  <header class="site-header">
+    <div class="container header-inner">
+      <a class="brand" href="index.html" aria-label="Ұлағатты Ұстаз">
+        <span class="brand__mark">${logoSVG}</span>
+        <span class="brand__name">Ұлағатты Ұстаз<small data-i18n="brand.sub"></small></span>
+      </a>
+      <nav class="nav">${navLinks}</nav>
+      <div class="header-actions">
+        <div class="lang-switch" role="group" aria-label="Language">
+          <button type="button" data-lang="kz">ҚАЗ</button>
+          <button type="button" data-lang="ru">РУС</button>
+        </div>
+        <a href="login.html" class="btn btn--ghost" data-i18n="cta.login"></a>
+        <a href="subscription.html" class="btn btn--gold" data-i18n="cta.subscribe"></a>
+        <button class="burger" id="burger" aria-label="Menu"><span></span><span></span><span></span></button>
+      </div>
+    </div>
+  </header>
+  <div class="mobile-nav" id="mobileNav">
+    <div class="mobile-nav__panel">
+      <button class="mobile-nav__close" id="mClose" aria-label="Close">&times;</button>
+      ${navItems.map(n => `<a href="${n.href}" data-i18n="${n.key}" class="${n.id === page ? "active" : ""}"></a>`).join("")}
+      <a href="login.html" class="btn btn--ghost" style="margin-top:12px" data-i18n="cta.login"></a>
+      <a href="subscription.html" class="btn btn--gold" data-i18n="cta.subscribe"></a>
+    </div>
+  </div>`;
+
+  const ic = {
+    tg: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21.9 4.3L2.9 11.7c-1.3.5-1.3 1.3-.2 1.6l4.8 1.5 1.9 5.8c.2.6.4.8.9.8.3 0 .5-.1.7-.3l2.6-2.5 4.8 3.6c.9.5 1.5.2 1.7-.8l3.1-14.6c.3-1.3-.5-1.9-1.1-1.1z"/></svg>`,
+    wa: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 00-8.6 15l-1.4 5 5.1-1.3A10 10 0 1012 2zm0 2a8 8 0 11-4.3 14.7l-.3-.2-3 .8.8-2.9-.2-.3A8 8 0 0112 4zm4.5 11c-.2.6-1.3 1.1-1.8 1.2-.5.1-1 .1-1.7-.1-.4-.1-.9-.3-1.6-.6-2.7-1.2-4.5-4-4.6-4.2-.1-.2-1.1-1.4-1.1-2.7s.7-1.9.9-2.1c.2-.2.4-.3.6-.3h.5c.2 0 .4 0 .6.5l.7 1.7c.1.2.1.3 0 .5l-.4.5c-.1.2-.3.3-.1.6.1.3.7 1.1 1.4 1.7.9.8 1.6 1.1 1.9 1.2.2.1.4.1.5-.1l.6-.7c.2-.2.3-.2.6-.1l1.6.8c.2.1.4.2.5.3.1.2.1.6-.1 1.1z"/></svg>`,
+    ig: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg>`,
+    yt: `<svg viewBox="0 0 24 24" fill="currentColor"><path d="M23 12s0-3.3-.4-4.9a2.5 2.5 0 00-1.8-1.8C19.2 5 12 5 12 5s-7.2 0-8.8.3A2.5 2.5 0 001.4 7C1 8.7 1 12 1 12s0 3.3.4 4.9a2.5 2.5 0 001.8 1.8C4.8 19 12 19 12 19s7.2 0 8.8-.3a2.5 2.5 0 001.8-1.8C23 15.3 23 12 23 12zM9.8 15.3V8.7l5.7 3.3-5.7 3.3z"/></svg>`,
+  };
+
+  const footer = `
+  <footer class="site-footer">
+    <div class="container footer-top">
+      <div>
+        <a class="brand" href="index.html">
+          <span class="brand__mark">${logoSVG}</span>
+          <span class="brand__name">Ұлағатты Ұстаз<small data-i18n="brand.sub"></small></span>
+        </a>
+        <p class="fabout" data-i18n="foot.about"></p>
+        <div class="socials">
+          <a href="#" aria-label="Telegram">${ic.tg}</a>
+          <a href="#" aria-label="WhatsApp">${ic.wa}</a>
+          <a href="#" aria-label="Instagram">${ic.ig}</a>
+          <a href="#" aria-label="YouTube">${ic.yt}</a>
+        </div>
+      </div>
+      <div class="footer-col">
+        <h4 data-i18n="foot.menu"></h4>
+        <a href="index.html" data-i18n="nav.home"></a>
+        <a href="courses.html" data-i18n="nav.courses"></a>
+        <a href="articles.html" data-i18n="nav.articles"></a>
+        <a href="subscription.html" data-i18n="nav.subscription"></a>
+      </div>
+      <div class="footer-col">
+        <h4 data-i18n="foot.resources"></h4>
+        <a href="certificate.html" data-i18n="nav.certificate"></a>
+        <a href="contact.html#faq" data-i18n="foot.help"></a>
+        <a href="#" data-i18n="foot.terms"></a>
+        <a href="#" data-i18n="foot.offer"></a>
+      </div>
+      <div class="footer-col">
+        <h4 data-i18n="foot.contacts"></h4>
+        <a href="tel:+77000000000">+7 (700) 000-00-00</a>
+        <a href="mailto:info@ulagattyustaz.kz">info@ulagattyustaz.kz</a>
+        <a href="contact.html" data-i18n="ct.addressv"></a>
+      </div>
+    </div>
+    <div class="container footer-bottom">
+      <span>© <span id="year"></span> «Ұлағатты Ұстаз». <span data-i18n="foot.rights"></span></span>
+      <span data-i18n="foot.reg"></span>
+    </div>
+  </footer>`;
+
+  const hSlot = document.getElementById("site-header");
+  const fSlot = document.getElementById("site-footer");
+  if (hSlot) hSlot.outerHTML = header;
+  if (fSlot) fSlot.outerHTML = footer;
+
+  const y = document.getElementById("year");
+  if (y) y.textContent = new Date().getFullYear();
+})();
