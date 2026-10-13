@@ -382,9 +382,21 @@ bot.action(/^ok:(\d+)$/, async (ctx) => {
   } catch (e) { console.error(e); await ctx.answerCbQuery("Қате: " + e.message, { show_alert: true }); }
 });
 
+// гарантированно уникальный номер: проверяем реестр, при совпадении — заново
+async function uniqueCertNumber() {
+  for (let i = 0; i < 12; i++) {
+    const n = genCertNumber();
+    try {
+      const j = await dFetch(`/items/certificates?filter[number][_eq]=${encodeURIComponent(n)}&fields=id&limit=1`);
+      if (!j.data || j.data.length === 0) return n;
+    } catch { return n; } // проверка не удалась — отдаём кандидат (unique-констрейнт в БД подстрахует)
+  }
+  return genCertNumber() + "-" + Date.now().toString(36); // крайний случай
+}
+
 // выдача сертификата: запись в реестр + PDF автору
 async function issueCertificate(req, lang) {
-  const number = genCertNumber();
+  const number = await uniqueCertNumber();
   const date = new Date().toLocaleDateString(lang === "kz" ? "kk-KZ" : "ru-RU");
   await dFetch("/items/certificates", {
     method: "POST", headers: { "Content-Type": "application/json" },
