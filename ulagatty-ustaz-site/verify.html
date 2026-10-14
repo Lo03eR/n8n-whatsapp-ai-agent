@@ -47,7 +47,7 @@
 
   function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");}
   function fmtDate(iso){ if(!iso) return ""; var d=new Date(iso); if(isNaN(d)) return ""; var p=function(n){return String(n).padStart(2,"0");}; return p(d.getDate())+"."+p(d.getMonth()+1)+"."+d.getFullYear(); }
-  var TYPE={cert:"Сертификат",grat:"Благодарность",holiday:"Поздравление"};
+  var TYPE={cert:"Сертификат",congrat:"Құттықтау / Поздравление",thanks:"Алғыс хат / Благодарственное"};
 
   function card(ok, html){
     box.innerHTML = '<div class="sidebar-card" style="border-left:6px solid '+(ok?"#2aa564":"#e35169")+'">'+html+'</div>';

@@ -173,6 +173,8 @@ echo "Осталось в админке (публичное чтение для
 echo "  Settings → Access Policies → Public →"
 echo "    + добавь права READ для 'articles' с фильтром status = published"
 echo "    + добавь права READ для 'ads' (рекламный блок)"
+echo "    + добавь права READ для 'certificates' — ТОЛЬКО поля: number, fio, topic, type, date_issued"
+echo "      (для проверки сертификата по QR на verify.html; НЕ открывай поле tg_user_id)"
 echo "    + добавь права READ для 'Directus Files' (чтобы грузились обложки и баннеры)"
 echo "  Сохрани. Проверь: $API/items/articles?filter[status][_eq]=published"
 echo ""
