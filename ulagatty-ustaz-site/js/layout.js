@@ -102,9 +102,9 @@
       </div>
       <div class="footer-col">
         <h4 data-i18n="foot.contacts"></h4>
-        <a href="tel:+77000000000">+7 (700) 000-00-00</a>
-        <a href="mailto:info@ulagattyustaz.kz">info@ulagattyustaz.kz</a>
-        <a href="contact.html" data-i18n="ct.addressv"></a>
+        <a href="tel:+77028990735">+7 702 899 0735</a>
+        <a href="mailto:ulagatty_ustaz.kz@mail.ru">ulagatty_ustaz.kz@mail.ru</a>
+        <a href="contact.html" data-i18n="ct.hoursv"></a>
       </div>
     </div>
     <div class="container footer-bottom">
