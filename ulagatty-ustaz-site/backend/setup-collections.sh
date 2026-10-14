@@ -146,11 +146,34 @@ read -r -d '' CERTS <<'JSON' || true
 JSON
 create_collection "certificates" "$CERTS"
 
+# ---------------- ads (рекламный блок, singleton) ----------------
+read -r -d '' ADS <<'JSON' || true
+{
+  "collection": "ads",
+  "meta": { "icon": "campaign", "note": "Рекламный блок на сайте (меняется в любое время)", "singleton": true },
+  "schema": {},
+  "fields": [
+    { "field": "id", "type": "integer", "meta": { "hidden": true, "interface": "input", "readonly": true }, "schema": { "is_primary_key": true, "has_auto_increment": true } },
+    { "field": "enabled", "type": "boolean", "meta": { "interface": "boolean", "note": "Показывать рекламу на сайте", "width": "half" }, "schema": { "default_value": true } },
+    { "field": "title", "type": "string", "meta": { "interface": "input", "note": "Заголовок (крупный, золотой)", "options": { "placeholder": "ПЛАСТИКОВЫЕ ОКНА И ДВЕРИ" } } },
+    { "field": "text", "type": "string", "meta": { "interface": "input", "note": "Короткое описание под заголовком" } },
+    { "field": "badge", "type": "string", "meta": { "interface": "input", "width": "half", "note": "Кружок слева (напр.: 15+ ЖЫЛ). Необязательно" } },
+    { "field": "phone", "type": "string", "meta": { "interface": "input", "width": "half", "note": "Телефон/контакт справа. Необязательно" } },
+    { "field": "link", "type": "string", "meta": { "interface": "input", "note": "Ссылка при клике (https://...). Необязательно" } },
+    { "field": "image", "type": "uuid", "meta": { "interface": "file-image", "special": ["file"], "note": "Картинка-баннер. Если загружена — показывается вместо текста" } }
+  ]
+}
+JSON
+create_collection "ads" "$ADS"
+
 echo ""
 echo "Готово ✅  Коллекции созданы."
 echo ""
-echo "Осталось 1 действие в админке (публичное чтение статей):"
+echo "Осталось в админке (публичное чтение для сайта):"
 echo "  Settings → Access Policies → Public →"
 echo "    + добавь права READ для 'articles' с фильтром status = published"
-echo "    + добавь права READ для 'Directus Files' (чтобы грузились обложки)"
+echo "    + добавь права READ для 'ads' (рекламный блок)"
+echo "    + добавь права READ для 'Directus Files' (чтобы грузились обложки и баннеры)"
 echo "  Сохрани. Проверь: $API/items/articles?filter[status][_eq]=published"
+echo ""
+echo "Реклама: Content → Ads → заполни/выключи. На сайте меняется сразу (после обновления страницы)."

@@ -310,6 +310,47 @@
     if (window.applyI18n) window.applyI18n();
   }
 
+  /* ---- рекламный блок (управляется из Directus, коллекция ads) ---- */
+  function renderAds(base) {
+    var banners = document.querySelectorAll(".ad-banner");
+    if (!banners.length || !base) return;
+    fetch(base + "/items/ads", { cache: "no-store" })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        var ad = j && j.data;
+        // скрыть рекламу, если выключена или пустая
+        if (!ad || ad.enabled === false || (!ad.title && !ad.image)) {
+          banners.forEach(function (b) { b.style.display = "none"; });
+          return;
+        }
+        var corner = esc(window.UU_LANG === "ru" ? "Реклама" : "Жарнама");
+        var link = String(ad.link || "").trim();
+        var safeLink = /^https?:\/\//i.test(link) ? link : "";
+        var img = ad.image ? (base + "/assets/" + encodeURIComponent(ad.image)) : "";
+        var openA = safeLink ? '<a href="' + esc(safeLink) + '" target="_blank" rel="noopener nofollow" style="text-decoration:none;color:inherit;display:block">' : "";
+        var closeA = safeLink ? "</a>" : "";
+        banners.forEach(function (b) {
+          var sidebar = !!b.closest("aside");
+          b.style.display = "";
+          var html = '<span class="adlabel">' + corner + "</span>";
+          if (img) {
+            html += openA + '<img src="' + esc(img) + '" alt="' + esc(ad.title || "") + '" style="display:block;width:100%;height:auto">' + closeA;
+          } else {
+            var badge = ad.badge ? '<span class="ad-badge">' + esc(ad.badge) + "</span>" : "";
+            var phone = ad.phone ? '<span class="ad-phone"' + (sidebar ? ' style="margin-left:0"' : "") + ">" + esc(ad.phone) + "</span>" : "";
+            var inner = '<div class="ad-inner"' + (sidebar ? ' style="flex-direction:column;align-items:flex-start;text-align:left"' : "") + ">" +
+              badge +
+              '<div><h4 class="ad-gold">' + esc(ad.title || "") + "</h4><p>" + esc(ad.text || "") + "</p></div>" +
+              phone +
+            "</div>";
+            html += openA + inner + closeA;
+          }
+          b.innerHTML = html;
+        });
+      })
+      .catch(function () {});
+  }
+
   /* ---- загрузка данных: сначала Directus API, иначе локальный JSON ---- */
   function apiBase() {
     return (window.UU_API || "").replace(/\/+$/, "");
@@ -364,6 +405,7 @@
   }
 
   document.addEventListener("DOMContentLoaded", function () {
+    renderAds(apiBase()); // реклама грузится независимо от статей
     load().then(function (list) {
       if (!Array.isArray(list) || !list.length) return; // нет данных → демо-разметка
       // новые сначала
