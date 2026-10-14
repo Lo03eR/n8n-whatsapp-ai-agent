@@ -1,99 +1,54 @@
 // ============================================================
-//  certificate.mjs — генерация PDF-сертификата (без браузера).
-//  Дизайн повторяет certificate.html: золотая рамка, красный
-//  заголовок, синее ФИО, зелёная тема, дата, рег. номер, QR.
-//  Шрифт DejaVuSans — с казахскими буквами.
+//  certificate.mjs — PDF-сертификат поверх официального бланка
+//  (certificate-blank.pdf). Накладываем только переменные поля:
+//  ФИО, тема, место работы, район, ссылка, дата, рег. номер, QR.
+//  Вензеля, «CERTIFICATE», подпись, печать и футер БАҚ — на бланке.
+//  Шрифт DejaVuSans (казахские буквы), наложение через pdf-lib.
 // ============================================================
-import PDFDocument from "pdfkit";
+import { PDFDocument, rgb } from "pdf-lib";
+import fontkit from "@pdf-lib/fontkit";
+import fs from "fs";
 import { fileURLToPath } from "url";
 
-// шрифты лежат рядом с модулем (в контейнере /app/fonts, локально ./fonts)
-const REG = fileURLToPath(new URL("./fonts/DejaVuSans.ttf", import.meta.url));
-const BOLD = fileURLToPath(new URL("./fonts/DejaVuSans-Bold.ttf", import.meta.url));
+const here = (p) => fileURLToPath(new URL(p, import.meta.url));
+const BLANK = here("./certificate-blank.pdf");
+const F_REG = here("./fonts/DejaVuSans.ttf");
+const F_BOLD = here("./fonts/DejaVuSans-Bold.ttf");
 
-const TITLES = {
-  cert:    { kz: "СЕРТИФИКАТ",  ru: "СЕРТИФИКАТ" },
-  grat:    { kz: "АЛҒЫС ХАТ",   ru: "БЛАГОДАРНОСТЬ" },
-  holiday: { kz: "ҚҰТТЫҚТАУ",   ru: "ПОЗДРАВЛЕНИЕ" },
-};
+const BLUE = rgb(0.09, 0.45, 0.82), NAVY = rgb(0.10, 0.14, 0.38), DARK = rgb(0.15, 0.15, 0.28), LINK = rgb(0.10, 0.40, 0.85);
+const CX = 420; // центр контентной области бланка
 
-export function makeCertificatePdf(data) {
-  const { type = "cert", fio = "", topic = "", work = "", region = "",
-          number = "", date = "", qrPng = null, lang = "kz" } = data;
+export async function makeCertificatePdf(d = {}) {
+  const pdf = await PDFDocument.load(fs.readFileSync(BLANK));
+  pdf.registerFontkit(fontkit);
+  const reg = await pdf.embedFont(fs.readFileSync(F_REG), { subset: true });
+  const bold = await pdf.embedFont(fs.readFileSync(F_BOLD), { subset: true });
+  const page = pdf.getPages()[0];
 
-  return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ size: "A4", layout: "landscape", margin: 0 });
-    const chunks = [];
-    doc.on("data", (c) => chunks.push(c));
-    doc.on("end", () => resolve(Buffer.concat(chunks)));
-    doc.on("error", reject);
+  const fit = (font, text, size, maxW) => { let s = size; if (maxW) while (s > 8 && font.widthOfTextAtSize(text, s) > maxW) s -= 0.5; return s; };
+  const center = (text, y, { font = reg, size = 12, color = DARK, maxW = 0 } = {}) => {
+    const s = fit(font, text, size, maxW); const w = font.widthOfTextAtSize(text, s);
+    page.drawText(text, { x: CX - w / 2, y, size: s, font, color });
+  };
+  const at = (text, x, y, { font = reg, size = 12, color = DARK, maxW = 0 } = {}) =>
+    page.drawText(text, { x, y, size: fit(font, text, size, maxW), font, color });
 
-    const W = doc.page.width, H = doc.page.height;
+  if (d.fio)    center(String(d.fio).toUpperCase(), 412, { font: bold, size: 22, color: BLUE, maxW: 560 });
+  if (d.topic)  center(String(d.topic), 349, { font: bold, size: 13, color: NAVY, maxW: 380 });
+  if (d.work)   at(String(d.work), 220, 290, { size: 12, maxW: 430 });
+  if (d.region) at(String(d.region), 125, 272, { size: 12, maxW: 520 });
+  if (d.link)   at(String(d.link), 275, 248, { size: 11, color: LINK, maxW: 450 });
+  if (d.date)   at(String(d.date), 415, 205, { size: 12 });
+  if (d.number) at("№ " + d.number, 222, 189, { font: bold, size: 12, color: DARK });
 
-    // фон + рамки
-    doc.rect(0, 0, W, H).fill("#fffdf5");
-    doc.lineWidth(7).strokeColor("#d4af37").rect(22, 22, W - 44, H - 44).stroke();
-    doc.lineWidth(1.5).strokeColor("#2aa564").rect(33, 33, W - 66, H - 66).stroke();
-    // уголки
-    doc.fillColor("#d4af37");
-    [[40, 40], [W - 40, 40], [40, H - 40], [W - 40, H - 40]].forEach(([x, y]) => {
-      doc.circle(x, y, 5).fill("#d4af37");
-    });
+  if (d.qrPng) { const png = await pdf.embedPng(d.qrPng); page.drawImage(png, { x: 75, y: 444, width: 68, height: 68 }); }
 
-    // шапка
-    doc.font(BOLD).fontSize(15).fillColor("#2aa564")
-      .text("«Ұлағатты Ұстаз.kz»", 0, 58, { align: "center", width: W });
-    doc.font(REG).fontSize(10).fillColor("#888")
-      .text(lang === "ru" ? "Информационно-образовательный портал" : "Ақпараттық-білім беру порталы",
-        0, 80, { align: "center", width: W });
-
-    // заголовок
-    const title = (TITLES[type] || TITLES.cert)[lang] || TITLES.cert.kz;
-    doc.font(BOLD).fontSize(46).fillColor("#c0392b")
-      .text(title, 0, 120, { align: "center", width: W, characterSpacing: 3 });
-
-    // подтверждающая строка
-    doc.font(REG).fontSize(13).fillColor("#444")
-      .text(lang === "ru" ? "настоящим подтверждается, что материал опубликован:" : "осы куәлік педагогке берілді:",
-        0, 188, { align: "center", width: W });
-
-    // ФИО
-    doc.font(BOLD).fontSize(30).fillColor("#1b4f8a")
-      .text((fio || "").toUpperCase(), 40, 214, { align: "center", width: W - 80 });
-
-    // тема
-    if (topic) {
-      doc.font(REG).fontSize(15).fillColor("#2aa564")
-        .text("«" + topic + "»", 90, 262, { align: "center", width: W - 180 });
-    }
-
-    // место работы / регион
-    const sub = [work, region].filter(Boolean).join(", ");
-    if (sub) {
-      doc.font(REG).fontSize(12).fillColor("#555")
-        .text(sub, 0, 320, { align: "center", width: W });
-    }
-
-    // дата + номер
-    doc.font(REG).fontSize(11).fillColor("#333");
-    doc.text((lang === "ru" ? "Дата: " : "Күні: ") + date, 70, H - 95);
-    doc.text("№ " + number, 70, H - 76);
-
-    // QR
-    if (qrPng) {
-      doc.image(qrPng, W - 150, H - 158, { width: 92 });
-      doc.font(REG).fontSize(8).fillColor("#888")
-        .text(lang === "ru" ? "Проверка подлинности" : "Түпнұсқаны тексеру",
-          W - 172, H - 60, { width: 136, align: "center" });
-    }
-
-    doc.end();
-  });
+  return Buffer.from(await pdf.save());
 }
 
 export function genCertNumber() {
   const n = Math.floor(1000 + Math.random() * 8999999).toString().padStart(7, "0");
   const suf = Math.floor(1 + Math.random() * 98).toString().padStart(2, "0");
   const letter = "ABCDEHKMPT".charAt(Math.floor(Math.random() * 10));
-  return "A" + n + "-" + suf + letter;   // без пробелов — удобно для URL/QR
+  return "A" + n + "-" + suf + letter;
 }

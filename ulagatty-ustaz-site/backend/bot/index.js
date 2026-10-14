@@ -53,6 +53,8 @@ const L = {
     "ask.name": "Атыңыз-жөніңізді жазыңыз (ФИО):",
     "ask.contact": "Байланыс (телефон немесе @username):",
     "ask.cat": "Санатты таңдаңыз:",
+    "ask.work": "Жұмыс орныңызды жазыңыз (мекеме атауы):",
+    "ask.region": "Ауданыңыз бен облысыңызды жазыңыз (мыс.: Жетісай ауданы, Түркістан облысы):",
     "ask.title": "Мақала тақырыбын жазыңыз:",
     "ask.text": "Мақала мәтінін жіберіңіз (мәтінмен немесе Word/PDF файлмен):",
     "ask.photo": "Мақала суретін жіберіңіз (міндетті емес).",
@@ -94,6 +96,8 @@ const L = {
     "ask.name": "Напишите ФИО автора:",
     "ask.contact": "Контакт (телефон или @username):",
     "ask.cat": "Выберите категорию:",
+    "ask.work": "Укажите место работы (название учреждения):",
+    "ask.region": "Укажите район и область (напр.: Жетысайский район, Туркестанская область):",
     "ask.title": "Напишите тему статьи:",
     "ask.text": "Пришлите текст статьи (текстом или файлом Word/PDF):",
     "ask.photo": "Пришлите фото к статье (необязательно).",
@@ -208,7 +212,19 @@ const wizard = new Scenes.WizardScene(
     const canon = canonCat(ctx.message?.text);
     if (!canon) return ctx.reply(t(ctx, "v.cat"));
     ctx.wizard.state.data.category = canon;
-    ctx.reply(t(ctx, "ask.title"), Markup.removeKeyboard());
+    ctx.reply(t(ctx, "ask.work"), Markup.removeKeyboard());
+    return ctx.wizard.next();
+  },
+  (ctx) => {
+    if (!ctx.message?.text) return ctx.reply(t(ctx, "v.text"));
+    ctx.wizard.state.data.work = ctx.message.text.trim();
+    ctx.reply(t(ctx, "ask.region"));
+    return ctx.wizard.next();
+  },
+  (ctx) => {
+    if (!ctx.message?.text) return ctx.reply(t(ctx, "v.text"));
+    ctx.wizard.state.data.region = ctx.message.text.trim();
+    ctx.reply(t(ctx, "ask.title"));
     return ctx.wizard.next();
   },
   (ctx) => {
@@ -252,6 +268,7 @@ const wizard = new Scenes.WizardScene(
         body: JSON.stringify({
           status: "new", author_name: d.author_name, author_contact: d.author_contact,
           category: d.category, title: d.title, body: d.body,
+          work: d.work, region: d.region,
           payment_proof, article_file, photo, tg_user_id: String(ctx.from.id),
         }),
       });
@@ -360,11 +377,12 @@ bot.action(/^ok:(\d+)$/, async (ctx) => {
   const id = ctx.match[1];
   try {
     const { data: req } = await dFetch(`/items/publish_requests/${id}`);
+    const slug = slugify(req.title);
     await dFetch(`/items/publish_requests/${id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status: "approved" }) });
     await dFetch("/items/articles", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        status: "published", title: req.title, slug: slugify(req.title),
+        status: "published", title: req.title, slug,
         content: textToHtml(req.body), categories: req.category ? [req.category] : [],
         author: req.author_name, featured_image: req.photo || null,
         date_published: new Date().toISOString(),
@@ -376,7 +394,7 @@ bot.action(/^ok:(\d+)$/, async (ctx) => {
       const l = users[req.tg_user_id]?.lang || "kz";
       ctx.telegram.sendMessage(req.tg_user_id, L[l]["au.approved"]).catch(() => {});
       // выдать сертификат (PDF) автору
-      try { await issueCertificate(req, l); }
+      try { await issueCertificate(req, l, slug); }
       catch (e) { console.error("cert error:", e.message); }
     }
   } catch (e) { console.error(e); await ctx.answerCbQuery("Қате: " + e.message, { show_alert: true }); }
@@ -394,10 +412,12 @@ async function uniqueCertNumber() {
   return genCertNumber() + "-" + Date.now().toString(36); // крайний случай
 }
 
-// выдача сертификата: запись в реестр + PDF автору
-async function issueCertificate(req, lang) {
+// выдача сертификата: запись в реестр + PDF автору поверх официального бланка
+async function issueCertificate(req, lang, slug) {
   const number = await uniqueCertNumber();
-  const date = new Date().toLocaleDateString(lang === "kz" ? "kk-KZ" : "ru-RU");
+  const d = new Date();
+  const p = (n) => String(n).padStart(2, "0");
+  const date = p(d.getDate()) + "." + p(d.getMonth() + 1) + "." + d.getFullYear() + " жыл.";
   await dFetch("/items/certificates", {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -406,8 +426,13 @@ async function issueCertificate(req, lang) {
     }),
   });
   const verifyUrl = SITE_URL + "/verify.html?n=" + encodeURIComponent(number);
+  const articleUrl = slug ? SITE_URL + "/article/" + slug + "/" : SITE_URL;
   const qrPng = await QRCode.toBuffer(verifyUrl, { margin: 1, width: 300 });
-  const pdf = await makeCertificatePdf({ type: "cert", fio: req.author_name, topic: req.title, number, date, qrPng, lang });
+  const pdf = await makeCertificatePdf({
+    fio: req.author_name, topic: req.title,
+    work: req.work || "", region: req.region || "",
+    link: articleUrl, date, number, qrPng,
+  });
   await bot.telegram.sendDocument(req.tg_user_id,
     { source: pdf, filename: "certificate-" + number + ".pdf" },
     { caption: lang === "ru" ? "Ваш сертификат 🎓" : "Сертификатыңыз 🎓" });

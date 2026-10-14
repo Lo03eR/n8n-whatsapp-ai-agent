@@ -109,6 +109,8 @@ read -r -d '' REQUESTS <<'JSON' || true
           { "text": "Тәрбие сағаты", "value": "Тәрбие сағаты" },
           { "text": "Әдістеме", "value": "Әдістеме" } ] } } },
     { "field": "title", "type": "string", "meta": { "interface": "input", "options": { "placeholder": "Тема статьи" } } },
+    { "field": "work", "type": "string", "meta": { "interface": "input", "width": "half", "note": "Место работы" } },
+    { "field": "region", "type": "string", "meta": { "interface": "input", "width": "half", "note": "Район, область" } },
     { "field": "body", "type": "text", "meta": { "interface": "input-rich-text-html" } },
     { "field": "article_file", "type": "uuid", "meta": { "interface": "file", "special": ["file"], "width": "half", "note": "Файл статьи (если прислали файлом)" } },
     { "field": "payment_proof", "type": "uuid", "meta": { "interface": "file", "special": ["file"], "width": "half", "note": "Чек об оплате (PDF)" } },
