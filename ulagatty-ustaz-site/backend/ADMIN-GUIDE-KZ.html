@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+<meta charset="UTF-8">
+<title>Нұсқаулық — мақаланы қолмен жариялау</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "DejaVu Sans", Arial, sans-serif; color: #222; font-size: 12.5px; line-height: 1.6; }
+  h1 { color: #2aa564; font-size: 22px; margin: 0 0 4px; }
+  .sub { color: #777; margin: 0 0 18px; }
+  h2 { color: #1b4f8a; font-size: 16px; margin: 20px 0 6px; border-bottom: 2px solid #e4ead0; padding-bottom: 4px; }
+  ol { padding-left: 20px; } ul { padding-left: 20px; }
+  li { margin: 4px 0; }
+  .step { background: #f7faf4; border-left: 4px solid #2aa564; padding: 8px 12px; margin: 8px 0; border-radius: 6px; }
+  .tip { background: #fff8e8; border-left: 4px solid #d4af37; padding: 8px 12px; margin: 10px 0; border-radius: 6px; }
+  .warn { background: #fdecea; border-left: 4px solid #e35169; padding: 8px 12px; margin: 10px 0; border-radius: 6px; }
+  b.k { color: #1b4f8a; }
+  code { background: #eef3ea; padding: 1px 5px; border-radius: 4px; font-family: "DejaVu Sans Mono", monospace; font-size: 11.5px; }
+  table { border-collapse: collapse; width: 100%; margin: 8px 0; }
+  th, td { border: 1px solid #d9e2dc; padding: 6px 8px; text-align: left; vertical-align: top; }
+  th { background: #eef5ef; }
+  .foot { margin-top: 22px; color: #888; font-size: 11px; border-top: 1px solid #e4ead0; padding-top: 8px; }
+</style>
+</head>
+<body>
+
+<h1>Мақаланы әкімшілік панелі арқылы қолмен жариялау</h1>
+<p class="sub">«Ұлағатты Ұстаз.kz» порталы — толық нұсқаулық (қадам-қадаммен)</p>
+
+<h2>1. Әкімшілік панеліне кіру</h2>
+<div class="step">
+<ol>
+  <li>Браузерде мына мекенжайды ашыңыз: <code>https://api.ulagattyustaz.kz/admin</code></li>
+  <li><b class="k">Email</b> пен <b class="k">құпия сөзді</b> енгізіңіз (сізге берілген әкімші логині).</li>
+  <li><b>«Sign In» / «Кіру»</b> батырмасын басыңыз.</li>
+</ol>
+</div>
+<div class="tip">💡 Құпия сөзді ешкімге бермеңіз. Құпия сөзді ұмытсаңыз — техникалық маманға хабарласыңыз.</div>
+
+<h2>2. Мақалалар бөліміне өту</h2>
+<div class="step">
+<ol>
+  <li>Сол жақтағы тар мәзірден <b>«Content» / «Контент»</b> белгісін басыңыз (дөңгелек/квадрат белгіше).</li>
+  <li>Ашылған тізімнен <b class="k">Articles</b> (Мақалалар) коллекциясын таңдаңыз.</li>
+  <li>Сіз бар мақалалардың тізімін көресіз.</li>
+</ol>
+</div>
+
+<h2>3. Жаңа мақала құру</h2>
+<div class="step">
+<ol>
+  <li>Жоғарғы оң жақтағы <b>«+»</b> (Create Item / Жаңа) батырмасын басыңыз.</li>
+  <li>Бос мақала формасы ашылады — оны толтырамыз (келесі бөлім).</li>
+</ol>
+</div>
+
+<h2>4. Өрістерді толтыру</h2>
+<table>
+  <tr><th>Өріс</th><th>Не жазу керек</th></tr>
+  <tr><td><b class="k">Title</b> (Тақырып)</td><td>Мақаланың толық атауын жазыңыз. Міндетті өріс.</td></tr>
+  <tr><td><b class="k">Slug</b> (Мекенжай)</td><td>Әдетте тақырыптан <b>автоматты</b> жасалады (мыс.: <code>kitap-bilim-bulagy</code>). Қолмен өзгертпей қалдыра беруге болады.</td></tr>
+  <tr><td><b class="k">Date published</b> (Жарияланған күні)</td><td>Күнтізбеден бүгінгі күн мен уақытты таңдаңыз.</td></tr>
+  <tr><td><b class="k">Categories</b> (Санаттар)</td><td>Бір немесе бірнеше санатты жазыңыз, дәл осылай:<br><b>Ұстаз</b>, <b>Мектеп тынысы</b>, <b>Тәрбие сағаты</b>, <b>Әдістеме</b>.<br>Әр санатты жазып, Enter басыңыз.</td></tr>
+  <tr><td><b class="k">Content</b> (Мәтін)</td><td>Мақаланың толық мәтінін осы редакторға теріңіз немесе қойыңыз. Жоғарыдағы құралдармен тақырыпша, жуан/қиғаш шрифт, тізім қосуға болады. Мәтін ішіне сурет те қоюға болады (суреттің белгісін басыңыз).</td></tr>
+  <tr><td><b class="k">Featured image</b> (Мұқаба суреті)</td><td>Мақаланың басты суреті. «+» немесе «Upload» басып, компьютерден сурет жүктеңіз. Бұл сурет сайтта карточкада көрінеді.</td></tr>
+  <tr><td><b class="k">Author</b> (Автор)</td><td>Автордың аты-жөнін жазыңыз.</td></tr>
+  <tr><td><b class="k">Status</b> (Күйі)</td><td><b style="color:#2aa564">Published / Опубликовано</b> (Жарияланған) таңдаңыз — тек осы күйдегі мақала ғана сайтта көрінеді.</td></tr>
+</table>
+<div class="warn">⚠️ Ең бастысы: <b>Status (Күйі)</b> міндетті түрде <b>«Published / Жарияланған»</b> болуы керек. «Draft (Черновик)» күйінде мақала сайтта көрінбейді.</div>
+
+<h2>5. Сақтау</h2>
+<div class="step">
+<ol>
+  <li>Барлық өрісті толтырғаннан кейін жоғарғы оң жақтағы <b>«✓»</b> (Save / Сақтау) белгісін басыңыз.</li>
+  <li>Мақала сақталып, тізімге қосылады.</li>
+</ol>
+</div>
+
+<h2>6. Нәтижені тексеру</h2>
+<div class="step">
+<ol>
+  <li>Сайтты ашыңыз: <code>https://ulagattyustaz.kz</code></li>
+  <li><b>Ctrl + Shift + R</b> басып, бетті жаңартыңыз.</li>
+  <li>Жаңа мақала бас бетте және өз санатында көрінеді.</li>
+</ol>
+</div>
+<div class="tip">💡 Мақаланың <b>жеке беті</b> (оны басқанда ашылатын) автоматты түрде жаңарады. Егер жаңа мақаланы басқанда бет ашылмаса — бірнеше минут күтіңіз (сайт күніне бірнеше рет өзі жаңарып тұрады).</div>
+
+<h2>7. Мақаланы өзгерту немесе жою</h2>
+<div class="step">
+<ul>
+  <li><b>Өзгерту:</b> Content → Articles → керек мақаланы басыңыз → өзгертіңіз → <b>✓</b> Сақтаңыз.</li>
+  <li><b>Уақытша жасыру:</b> Status-ты <b>Draft</b> немесе <b>Archived</b> етіп, сақтаңыз — мақала сайттан жоғалады (бірақ базада қалады).</li>
+  <li><b>Толық жою:</b> мақаланы ашып, жоғарыдағы <b>қоқыс жәшігі</b> белгісін басыңыз.</li>
+</ul>
+</div>
+
+<h2>8. Пайдалы кеңестер</h2>
+<ul>
+  <li><b>Сурет өлшемі:</b> тым үлкен суреттерді жүктемеңіз (2–3 МБ жеткілікті) — сайт жылдам ашылады.</li>
+  <li><b>Тақырып нақты болсын:</b> іздеуден табылуы үшін тақырыпта негізгі сөздер болғаны жөн.</li>
+  <li><b>Санатты дұрыс жазыңыз</b> — әйтпесе мақала керек бөлімге түспейді.</li>
+  <li>Жұмысыңызды жиі <b>сақтап</b> отырыңыз.</li>
+</ul>
+
+<p class="foot">«Ұлағатты Ұстаз.kz» · Әкімшіге арналған нұсқаулық. Сұрақтар болса — техникалық маманға хабарласыңыз.</p>
+
+</body>
+</html>
