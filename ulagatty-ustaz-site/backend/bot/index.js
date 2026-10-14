@@ -85,7 +85,10 @@ const L = {
     "adm.sent": "Жіберілді",
     "adm.only": "Тек әкімшіге.",
     "adm.post": "📥 Материал жариялау",
-    "ap.intro": "📥 Жаңа материалды қолмен жариялау.\nАвтор деректерін, тақырыпты және мәтінді сұраймын.\n/cancel — тоқтату.",
+    "ap.intro": "📥 Материалды жариялау.\nТақырып → санат → мәтін → сурет → құжат.\n/cancel — тоқтату.",
+    "ap.name_opt": "Автордың аты-жөні (сертификат үшін). Қажет болмаса «⏭ Өткізу»:",
+    "ap.work_opt": "Жұмыс орны (міндетті емес). «⏭ Өткізу» басуға болады:",
+    "ap.region_opt": "Аудан, облыс (міндетті емес). «⏭ Өткізу» басуға болады:",
     "ap.doctype": "Қай құжат берілсін?",
     "ap.dt_cert": "📜 Сертификат", "ap.dt_congrat": "🎉 Құттықтау", "ap.dt_thanks": "🙏 Алғыс хат", "ap.dt_none": "🚫 Құжатсыз",
     "ap.published": "✅ Сайтқа жарияланды!\nҚұжат (PDF) сізге жіберілді — оны авторға қайта жолдай аласыз.",
@@ -135,7 +138,10 @@ const L = {
     "adm.sent": "Отправлено",
     "adm.only": "Только администратору.",
     "adm.post": "📥 Опубликовать материал",
-    "ap.intro": "📥 Ручная публикация нового материала.\nСпрошу данные автора, тему и текст.\n/cancel — отмена.",
+    "ap.intro": "📥 Публикация материала.\nТема → категория → текст → фото → документ.\n/cancel — отмена.",
+    "ap.name_opt": "ФИО автора (для сертификата). Не нужно — «⏭ Пропустить»:",
+    "ap.work_opt": "Место работы (необязательно). Можно «⏭ Пропустить»:",
+    "ap.region_opt": "Район, область (необязательно). Можно «⏭ Пропустить»:",
     "ap.doctype": "Какой документ выдать?",
     "ap.dt_cert": "📜 Сертификат", "ap.dt_congrat": "🎉 Поздравление", "ap.dt_thanks": "🙏 Благодарственное", "ap.dt_none": "🚫 Без документа",
     "ap.published": "✅ Опубликовано на сайте!\nДокумент (PDF) отправлен вам — можете переслать его автору.",
@@ -350,25 +356,48 @@ const resolveDocType = (text) => {
   for (const k in map) if (text === L.kz[k] || text === L.ru[k]) return map[k];
   return null;
 };
+const skipKb = (ctx) => Markup.keyboard([[t(ctx, "btn.skip")]]).oneTime().resize();
+const isSkip = (ctx) => ctx.message?.text && (ctx.message.text === L.kz["btn.skip"] || ctx.message.text === L.ru["btn.skip"]);
+
+// публикация статьи (+ выдача документа при необходимости)
+async function adminFinish(ctx, d, lang) {
+  await ctx.reply(t(ctx, "processing"), Markup.removeKeyboard());
+  let photo = null;
+  if (d.photo_id) photo = await uploadTelegramFile(ctx, d.photo_id, "photo.jpg");
+  const slug = slugify(d.title);
+  await dFetch("/items/articles", {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      status: "published", title: d.title, slug, content: textToHtml(d.body),
+      categories: d.category ? [d.category] : [], author: d.author_name || "",
+      featured_image: photo || null, date_published: new Date().toISOString(),
+    }),
+  });
+  if (!d.type || d.type === "none") { await ctx.reply(t(ctx, "ap.pubnodoc"), menuFor(ctx)); }
+  else {
+    await issueCertificate({ fio: d.author_name || "", topic: d.title, work: d.work || "", region: d.region || "", slug, type: d.type, target: ctx.from.id, lang });
+    await ctx.reply(t(ctx, "ap.published"), menuFor(ctx));
+  }
+}
+
+// Короткий поток для админа: тема → категория → текст → фото → документ.
+// ФИО/место/район спрашиваем только если выдаётся документ, и их можно пропустить.
 const adminPostScene = new Scenes.WizardScene("adminpost",
   (ctx) => {
     if (!isAdmin(ctx)) { ctx.reply(t(ctx, "adm.only")); return ctx.scene.leave(); }
     ctx.wizard.state.data = {};
     ctx.reply(t(ctx, "ap.intro"));
-    ctx.reply(t(ctx, "ask.name"), Markup.removeKeyboard());
+    ctx.reply(t(ctx, "ask.title"), Markup.removeKeyboard());
     return ctx.wizard.next();
   },
-  (ctx) => { if (!ctx.message?.text) return ctx.reply(t(ctx, "v.text")); ctx.wizard.state.data.author_name = ctx.message.text.trim(); ctx.reply(t(ctx, "ask.cat"), Markup.keyboard(catKeyboard(langOf(ctx))).oneTime().resize()); return ctx.wizard.next(); },
-  (ctx) => { const c = canonCat(ctx.message?.text); if (!c) return ctx.reply(t(ctx, "v.cat")); ctx.wizard.state.data.category = c; ctx.reply(t(ctx, "ask.work"), Markup.removeKeyboard()); return ctx.wizard.next(); },
-  (ctx) => { if (!ctx.message?.text) return ctx.reply(t(ctx, "v.text")); ctx.wizard.state.data.work = ctx.message.text.trim(); ctx.reply(t(ctx, "ask.region")); return ctx.wizard.next(); },
-  (ctx) => { if (!ctx.message?.text) return ctx.reply(t(ctx, "v.text")); ctx.wizard.state.data.region = ctx.message.text.trim(); ctx.reply(t(ctx, "ask.title")); return ctx.wizard.next(); },
-  (ctx) => { if (!ctx.message?.text) return ctx.reply(t(ctx, "v.text")); ctx.wizard.state.data.title = ctx.message.text.trim(); ctx.reply(t(ctx, "ask.text")); return ctx.wizard.next(); },
+  (ctx) => { if (!ctx.message?.text) return ctx.reply(t(ctx, "v.text")); ctx.wizard.state.data.title = ctx.message.text.trim(); ctx.reply(t(ctx, "ask.cat"), Markup.keyboard(catKeyboard(langOf(ctx))).oneTime().resize()); return ctx.wizard.next(); },
+  (ctx) => { const c = canonCat(ctx.message?.text); if (!c) return ctx.reply(t(ctx, "v.cat")); ctx.wizard.state.data.category = c; ctx.reply(t(ctx, "ask.text"), Markup.removeKeyboard()); return ctx.wizard.next(); },
   (ctx) => {
     const d = ctx.wizard.state.data;
     if (ctx.message?.text) d.body = ctx.message.text.trim();
-    else if (ctx.message?.document) { d.article_file_id = ctx.message.document.file_id; d.article_file_name = ctx.message.document.file_name || "article"; d.body = ctx.message.caption?.trim() || d.title; }
+    else if (ctx.message?.document) { d.body = ctx.message.caption?.trim() || d.title; }
     else return ctx.reply(t(ctx, "v.textfile"));
-    ctx.reply(t(ctx, "ask.photo"), Markup.keyboard([[t(ctx, "btn.skip")]]).oneTime().resize());
+    ctx.reply(t(ctx, "ask.photo"), skipKb(ctx));
     return ctx.wizard.next();
   },
   (ctx) => {
@@ -381,26 +410,19 @@ const adminPostScene = new Scenes.WizardScene("adminpost",
     const d = ctx.wizard.state.data; const lang = langOf(ctx);
     const dt = resolveDocType(ctx.message?.text);
     if (!dt) return ctx.reply(t(ctx, "ap.doctype"), docTypeKb(lang));
-    await ctx.reply(t(ctx, "processing"), Markup.removeKeyboard());
-    try {
-      let photo = null;
-      if (d.photo_id) photo = await uploadTelegramFile(ctx, d.photo_id, "photo.jpg");
-      const slug = slugify(d.title);
-      await dFetch("/items/articles", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          status: "published", title: d.title, slug, content: textToHtml(d.body),
-          categories: d.category ? [d.category] : [], author: d.author_name,
-          featured_image: photo || null,
-          date_published: new Date().toISOString(),
-        }),
-      });
-      if (dt === "none") { await ctx.reply(t(ctx, "ap.pubnodoc"), menuFor(ctx)); }
-      else {
-        await issueCertificate({ fio: d.author_name, topic: d.title, work: d.work, region: d.region, slug, type: dt, target: ctx.from.id, lang });
-        await ctx.reply(t(ctx, "ap.published"), menuFor(ctx));
-      }
-    } catch (e) { console.error(e); await ctx.reply(t(ctx, "error") + "\n" + e.message, menuFor(ctx)); }
+    d.type = dt;
+    // без документа — публикуем сразу, лишнего не спрашиваем
+    if (dt === "none") { try { await adminFinish(ctx, d, lang); } catch (e) { console.error(e); await ctx.reply(t(ctx, "error") + "\n" + e.message, menuFor(ctx)); } return ctx.scene.leave(); }
+    // для документа нужны ФИО/место/район — но их можно пропустить
+    ctx.reply(t(ctx, "ap.name_opt"), skipKb(ctx));
+    return ctx.wizard.next();
+  },
+  (ctx) => { if (!isSkip(ctx) && ctx.message?.text) ctx.wizard.state.data.author_name = ctx.message.text.trim(); ctx.reply(t(ctx, "ap.work_opt"), skipKb(ctx)); return ctx.wizard.next(); },
+  (ctx) => { if (!isSkip(ctx) && ctx.message?.text) ctx.wizard.state.data.work = ctx.message.text.trim(); ctx.reply(t(ctx, "ap.region_opt"), skipKb(ctx)); return ctx.wizard.next(); },
+  async (ctx) => {
+    const d = ctx.wizard.state.data; const lang = langOf(ctx);
+    if (!isSkip(ctx) && ctx.message?.text) d.region = ctx.message.text.trim();
+    try { await adminFinish(ctx, d, lang); } catch (e) { console.error(e); await ctx.reply(t(ctx, "error") + "\n" + e.message, menuFor(ctx)); }
     return ctx.scene.leave();
   }
 );
