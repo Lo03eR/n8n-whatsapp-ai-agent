@@ -33,8 +33,26 @@ export async function makeCertificatePdf(d = {}) {
   const at = (text, x, y, { font = reg, size = 12, color = DARK, maxW = 0 } = {}) =>
     page.drawText(text, { x, y, size: fit(font, text, size, maxW), font, color });
 
+  // перенос текста в несколько строк по ширине
+  const wrap = (font, text, size, maxW) => {
+    const words = String(text).split(/\s+/); const lines = []; let cur = "";
+    for (const w of words) { const t = cur ? cur + " " + w : w; if (font.widthOfTextAtSize(t, size) <= maxW || !cur) cur = t; else { lines.push(cur); cur = w; } }
+    if (cur) lines.push(cur); return lines;
+  };
+  // крупный центрированный блок с переносом (для темы) вокруг yCenter
+  const centerBlock = (text, yCenter, { font = bold, size = 20, color = NAVY, maxW = 420, maxLines = 2 } = {}) => {
+    let s = size, lines = wrap(font, text, s, maxW);
+    while (lines.length > maxLines && s > 12) { s -= 0.5; lines = wrap(font, text, s, maxW); }
+    const lineH = s * 1.2;
+    lines.forEach((ln, i) => {
+      const w = font.widthOfTextAtSize(ln, s);
+      const y = yCenter + (lines.length - 1) * lineH / 2 - i * lineH - s * 0.35;
+      page.drawText(ln, { x: CX - w / 2, y, size: s, font, color });
+    });
+  };
+
   if (d.fio)    center(String(d.fio).toUpperCase(), 412, { font: bold, size: 22, color: BLUE, maxW: 560 });
-  if (d.topic)  center(String(d.topic), 349, { font: bold, size: 13, color: NAVY, maxW: 380 });
+  if (d.topic)  center(String(d.topic), 350, { font: bold, size: 20, color: NAVY, maxW: 575 });
   if (d.work)   at(String(d.work), 220, 290, { size: 12, maxW: 430 });
   if (d.region) at(String(d.region), 125, 272, { size: 12, maxW: 520 });
   if (d.link)   at(String(d.link), 275, 248, { size: 11, color: LINK, maxW: 450 });
