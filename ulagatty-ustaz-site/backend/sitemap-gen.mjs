@@ -11,7 +11,7 @@ const OUT = process.env.OUT || "/out/sitemap.xml";
 
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-const statics = ["/", "/category.html", "/contact.html", "/certificate.html"];
+const statics = ["/", "/category.html", "/contact.html", "/certificate.html", "/privacy.html", "/terms.html"];
 const cats = ["ustaz", "school", "tarbie", "method"].map((c) => "/category.html?c=" + c);
 
 let arts = [];

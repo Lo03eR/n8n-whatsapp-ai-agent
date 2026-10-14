@@ -118,6 +118,7 @@ ${img ? `<meta property="og:image" content="${esc(img)}">` : ""}
 <script src="/js/i18n.js"></script>
 <script src="/js/layout.js"></script>
 <script src="/js/main.js"></script>
+<script src="/js/cookie.js"></script>
 <script>
 (function(){var API=(window.UU_API||"").replace(/\\/+$/,"");var id=${Number(a.id) || 0};if(!API||!id)return;
 try{var k="seen_"+id;if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,"1");}catch(e){}
@@ -148,7 +149,7 @@ for (const a of arts) {
 }
 
 // ---- sitemap.xml (чистые адреса) ----
-const statics = ["/", "/category.html", "/contact.html", "/certificate.html",
+const statics = ["/", "/category.html", "/contact.html", "/certificate.html", "/privacy.html", "/terms.html",
   "/category.html?c=ustaz", "/category.html?c=school", "/category.html?c=tarbie", "/category.html?c=method"];
 const xmlEsc = (s) => String(s).replace(/&/g, "&amp;");
 const urls = [

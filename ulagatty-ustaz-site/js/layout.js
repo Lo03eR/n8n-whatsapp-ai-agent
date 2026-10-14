@@ -99,7 +99,8 @@
         <a href="${botUrl}"${botAttr} data-i18n="cta.publish"></a>
         <a href="/certificate.html" data-i18n="nav.certificate"></a>
         <a href="/contact.html#faq" data-i18n="foot.help"></a>
-        <a href="#" data-i18n="foot.terms"></a>
+        <a href="/privacy.html" data-i18n="foot.terms"></a>
+        <a href="/terms.html" data-i18n="foot.agreement"></a>
       </div>
       <div class="footer-col">
         <h4 data-i18n="foot.contacts"></h4>
