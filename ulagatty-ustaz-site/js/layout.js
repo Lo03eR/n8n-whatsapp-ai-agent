@@ -12,13 +12,14 @@
       <circle cx="12" cy="18.5" r="1.1" fill="#ffd97a"/>
     </svg>`;
 
+  // ссылки от корня (/) — чтобы работали и на /article/<slug>/, и на любой странице
   const navItems = [
-    { key: "nav.home", href: "index.html", id: "home" },
-    { key: "nav.ustaz", href: "category.html?c=ustaz", id: "ustaz" },
-    { key: "nav.school", href: "category.html?c=school", id: "school" },
-    { key: "nav.tarbie", href: "category.html?c=tarbie", id: "tarbie" },
-    { key: "nav.method", href: "category.html?c=method", id: "method" },
-    { key: "nav.contact", href: "contact.html", id: "contact" },
+    { key: "nav.home", href: "/index.html", id: "home" },
+    { key: "nav.ustaz", href: "/category.html?c=ustaz", id: "ustaz" },
+    { key: "nav.school", href: "/category.html?c=school", id: "school" },
+    { key: "nav.tarbie", href: "/category.html?c=tarbie", id: "tarbie" },
+    { key: "nav.method", href: "/category.html?c=method", id: "method" },
+    { key: "nav.contact", href: "/contact.html", id: "contact" },
   ];
 
   const navLinks = navItems.map(n =>
@@ -29,14 +30,14 @@
 
   // Кнопка «Мақала жариялау» ведёт в бота (Telegram/WhatsApp), если задан
   // в config.js; иначе — на страницу контактов. Заказ статьи — только в боте.
-  const botUrl = window.UU_BOT_URL || window.UU_WA_URL || "contact.html";
+  const botUrl = window.UU_BOT_URL || window.UU_WA_URL || "/contact.html";
   const botExternal = !!(window.UU_BOT_URL || window.UU_WA_URL);
   const botAttr = botExternal ? ' target="_blank" rel="noopener"' : "";
 
   const header = `
   <header class="site-header">
     <div class="container header-inner">
-      <a class="brand" href="index.html" aria-label="Ұлағатты Ұстаз">
+      <a class="brand" href="/" aria-label="Ұлағатты Ұстаз">
         <span class="brand__mark">${logoSVG}</span>
         <span class="brand__name">Ұлағатты Ұстаз<b style="color:var(--gold,#d4af37)">.kz</b><small data-i18n="brand.sub"></small></span>
       </a>
@@ -74,7 +75,7 @@
   <footer class="site-footer">
     <div class="container footer-top">
       <div>
-        <a class="brand" href="index.html">
+        <a class="brand" href="/">
           <span class="brand__mark">${logoSVG}</span>
           <span class="brand__name">Ұлағатты Ұстаз<b style="color:var(--gold,#d4af37)">.kz</b><small data-i18n="brand.sub"></small></span>
         </a>
@@ -88,23 +89,23 @@
       </div>
       <div class="footer-col">
         <h4 data-i18n="foot.menu"></h4>
-        <a href="category.html?c=ustaz" data-i18n="nav.ustaz"></a>
-        <a href="category.html?c=school" data-i18n="nav.school"></a>
-        <a href="category.html?c=tarbie" data-i18n="nav.tarbie"></a>
-        <a href="category.html?c=method" data-i18n="nav.method"></a>
+        <a href="/category.html?c=ustaz" data-i18n="nav.ustaz"></a>
+        <a href="/category.html?c=school" data-i18n="nav.school"></a>
+        <a href="/category.html?c=tarbie" data-i18n="nav.tarbie"></a>
+        <a href="/category.html?c=method" data-i18n="nav.method"></a>
       </div>
       <div class="footer-col">
         <h4 data-i18n="foot.resources"></h4>
         <a href="${botUrl}"${botAttr} data-i18n="cta.publish"></a>
-        <a href="certificate.html" data-i18n="nav.certificate"></a>
-        <a href="contact.html#faq" data-i18n="foot.help"></a>
+        <a href="/certificate.html" data-i18n="nav.certificate"></a>
+        <a href="/contact.html#faq" data-i18n="foot.help"></a>
         <a href="#" data-i18n="foot.terms"></a>
       </div>
       <div class="footer-col">
         <h4 data-i18n="foot.contacts"></h4>
         <a href="tel:+77028990735">+7 702 899 0735</a>
         <a href="mailto:ulagatty_ustaz.kz@mail.ru">ulagatty_ustaz.kz@mail.ru</a>
-        <a href="contact.html" data-i18n="ct.hoursv"></a>
+        <a href="/contact.html" data-i18n="ct.hoursv"></a>
       </div>
     </div>
     <div class="container footer-bottom">
