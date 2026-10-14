@@ -1,9 +1,10 @@
 // ============================================================
-//  certificate.mjs — PDF-сертификат поверх официального бланка
-//  (certificate-blank.pdf). Накладываем только переменные поля:
-//  ФИО, тема, место работы, район, ссылка, дата, рег. номер, QR.
-//  Вензеля, «CERTIFICATE», подпись, печать и футер БАҚ — на бланке.
-//  Шрифт DejaVuSans (казахские буквы), наложение через pdf-lib.
+//  certificate.mjs — PDF поверх официального ажурного бланка.
+//  Три типа в ОДНОМ формате (type): cert | congrat | thanks —
+//  различаются только красным заголовком и вводной фразой;
+//  шапка, подпись, печать и футер БАҚ — вшиты в бланк.
+//  Накладываем: ФИО, тему, место работы, район, ссылку, дату,
+//  рег.номер и QR. Шрифт DejaVuSans (казахские буквы), pdf-lib.
 // ============================================================
 import { PDFDocument, rgb } from "pdf-lib";
 import fontkit from "@pdf-lib/fontkit";
@@ -15,49 +16,92 @@ const BLANK = here("./certificate-blank.pdf");
 const F_REG = here("./fonts/DejaVuSans.ttf");
 const F_BOLD = here("./fonts/DejaVuSans-Bold.ttf");
 
-const BLUE = rgb(0.09, 0.45, 0.82), NAVY = rgb(0.10, 0.14, 0.38), DARK = rgb(0.15, 0.15, 0.28), LINK = rgb(0.10, 0.40, 0.85);
-const CX = 420; // центр контентной области бланка
+const BLUE = rgb(0.09, 0.45, 0.82);   // ФИО / тема
+const RED  = rgb(0.82, 0.06, 0.06);   // заголовок типа
+const MAROON = rgb(0.62, 0.09, 0.11); // как у вшитых подписей-подписей (тёмно-красный)
+const DARK = rgb(0.14, 0.14, 0.26);   // значения полей
+const WHITE = rgb(1, 1, 1);
+const CX = 430; // центр контентной области
+
+// тексты, которые различаются по типам документа.
+// cert — заголовок «CERTIFICATE» и вводная строка ВШИТЫ в бланк (ничего не перерисовываем).
+// congrat / thanks — перекрываем заголовок и вводную строку и рисуем свои.
+const TYPES = {
+  cert:    { title: null, intro: null },
+  congrat: { title: "ҚҰТТЫҚТАУ", intro: (t) => `«ҰЛАҒАТТЫ ҰСТАЗ.КЗ» ақпаратты порталында «${t}» атты материалыңыздың жарияланғанымен шын жүректен құттықтаймыз!` },
+  thanks:  { title: "АЛҒЫС ХАТ",  intro: (t) => `«ҰЛАҒАТТЫ ҰСТАЗ.КЗ» ақпаратты порталында «${t}» атты материалмен бөлісіп, білім саласына қосқан үлесіңіз үшін алғыс білдіреміз.` },
+};
 
 export async function makeCertificatePdf(d = {}) {
+  const type = TYPES[d.type] ? d.type : "cert";
   const pdf = await PDFDocument.load(fs.readFileSync(BLANK));
   pdf.registerFontkit(fontkit);
   const reg = await pdf.embedFont(fs.readFileSync(F_REG), { subset: true });
   const bold = await pdf.embedFont(fs.readFileSync(F_BOLD), { subset: true });
   const page = pdf.getPages()[0];
 
-  const fit = (font, text, size, maxW) => { let s = size; if (maxW) while (s > 8 && font.widthOfTextAtSize(text, s) > maxW) s -= 0.5; return s; };
+  const fit = (font, text, size, maxW) => { let s = size; if (maxW) while (s > 7 && font.widthOfTextAtSize(text, s) > maxW) s -= 0.5; return s; };
+  const at = (text, x, y, { font = reg, size = 12, color = DARK, maxW = 0 } = {}) =>
+    page.drawText(text, { x, y, size: fit(font, text, size, maxW), font, color });
   const center = (text, y, { font = reg, size = 12, color = DARK, maxW = 0 } = {}) => {
     const s = fit(font, text, size, maxW); const w = font.widthOfTextAtSize(text, s);
     page.drawText(text, { x: CX - w / 2, y, size: s, font, color });
   };
-  const at = (text, x, y, { font = reg, size = 12, color = DARK, maxW = 0 } = {}) =>
-    page.drawText(text, { x, y, size: fit(font, text, size, maxW), font, color });
-
-  // перенос текста в несколько строк по ширине
   const wrap = (font, text, size, maxW) => {
     const words = String(text).split(/\s+/); const lines = []; let cur = "";
     for (const w of words) { const t = cur ? cur + " " + w : w; if (font.widthOfTextAtSize(t, size) <= maxW || !cur) cur = t; else { lines.push(cur); cur = w; } }
     if (cur) lines.push(cur); return lines;
   };
-  // крупный центрированный блок с переносом (для темы) вокруг yCenter
-  const centerBlock = (text, yCenter, { font = bold, size = 20, color = NAVY, maxW = 420, maxLines = 2 } = {}) => {
-    let s = size, lines = wrap(font, text, s, maxW);
-    while (lines.length > maxLines && s > 12) { s -= 0.5; lines = wrap(font, text, s, maxW); }
-    const lineH = s * 1.2;
-    lines.forEach((ln, i) => {
-      const w = font.widthOfTextAtSize(ln, s);
-      const y = yCenter + (lines.length - 1) * lineH / 2 - i * lineH - s * 0.35;
-      page.drawText(ln, { x: CX - w / 2, y, size: s, font, color });
-    });
+  // посимвольный перенос (для длинных ссылок без пробелов)
+  const wrapChars = (font, text, size, maxW) => {
+    const out = []; let cur = "";
+    for (const ch of String(text)) { const t = cur + ch; if (font.widthOfTextAtSize(t, size) <= maxW || !cur) cur = t; else { out.push(cur); cur = ch; } }
+    if (cur) out.push(cur); return out;
   };
+  const cover = (x, y, w, h) => page.drawRectangle({ x, y, width: w, height: h, color: WHITE });
 
-  if (d.fio)    center(String(d.fio).toUpperCase(), 412, { font: bold, size: 22, color: BLUE, maxW: 560 });
-  if (d.topic)  center(String(d.topic), 350, { font: bold, size: 20, color: NAVY, maxW: 575 });
-  if (d.work)   at(String(d.work), 220, 290, { size: 12, maxW: 430 });
-  if (d.region) at(String(d.region), 125, 272, { size: 12, maxW: 520 });
-  if (d.link)   at(String(d.link), 275, 248, { size: 11, color: LINK, maxW: 450 });
-  if (d.date)   at(String(d.date), 415, 205, { size: 12 });
-  if (d.number) at("№ " + d.number, 222, 189, { font: bold, size: 12, color: DARK });
+  // ----- заголовок типа (для congrat/thanks перекрываем вшитое «CERTIFICATE») -----
+  if (TYPES[type].title) {
+    cover(150, 450, 560, 50);                        // стереть «CERTIFICATE» (не трогая верхнюю шапку)
+    center(TYPES[type].title, 457, { font: bold, size: 47, color: RED, maxW: 600 });
+  }
+
+  // ----- ФИО (под заголовком) -----
+  if (d.fio) center(String(d.fio).toUpperCase(), 423, { font: bold, size: 24, color: BLUE, maxW: 610 });
+
+  // ----- вводный блок (портал + тема) -----
+  // для congrat/thanks перекрываем вшитые 4 строки и рисуем свою вводную фразу вокруг темы
+  if (TYPES[type].intro) {
+    cover(150, 322, 560, 80);                       // стереть вшитый вводный абзац
+    const intro = TYPES[type].intro(String(d.topic || ""));
+    let s = 15, lines = wrap(bold, intro, s, 560);
+    while (lines.length > 3 && s > 11) { s -= 0.5; lines = wrap(bold, intro, s, 560); }
+    const lineH = s * 1.35; const top = 392;
+    lines.forEach((ln, i) => center(ln, top - i * lineH, { font: bold, size: s, color: MAROON, maxW: 560 }));
+  } else {
+    // cert: тема между вшитыми кавычками (стираем пустую строку с кавычками, рисуем свои вокруг темы)
+    cover(150, 345, 560, 28);
+    const topic = `«${String(d.topic || "")}»`;
+    let s = 18, lines = wrap(bold, topic, s, 585);
+    while (lines.length > 2 && s > 12) { s -= 0.5; lines = wrap(bold, topic, s, 585); }
+    if (lines.length > 1 && s > 15.5) { s = 15.5; lines = wrap(bold, topic, s, 585); }
+    const lineH = s * 1.3;
+    const yc = lines.length > 1 ? 362 : 356;
+    lines.forEach((ln, i) => center(ln, yc - i * lineH, { font: bold, size: s, color: BLUE, maxW: 595 }));
+  }
+
+  // ----- поля (значения после вшитых подписей) -----
+  if (d.work)   at(String(d.work),   410, 299, { font: bold, size: 12.5, color: DARK, maxW: 410 });
+  if (d.region) at(String(d.region), 255, 281, { font: bold, size: 12.5, color: DARK, maxW: 545 });
+  if (d.link) {
+    const s = 11, url = String(d.link);
+    const first = wrapChars(reg, url, s, 308)[0] || url;
+    at(first, 480, 258, { size: s, color: BLUE });
+    const rest = url.slice(first.length);
+    if (rest) wrapChars(reg, rest, s, 548).slice(0, 2).forEach((ln, i) => at(ln, 255, 240 - i * 15, { size: s, color: BLUE }));
+  }
+  if (d.date)   at(String(d.date), 556, 215, { font: bold, size: 12.5, color: DARK });
+  if (d.number) at("№" + String(d.number).replace("-", " - "), 330, 198, { font: bold, size: 12.5, color: DARK });
 
   if (d.qrPng) { const png = await pdf.embedPng(d.qrPng); page.drawImage(png, { x: 75, y: 444, width: 68, height: 68 }); }
 

@@ -84,6 +84,12 @@ const L = {
     "adm.askbroadcast": "Барлық қолданушыға жіберілетін хабарламаны жазыңыз:",
     "adm.sent": "Жіберілді",
     "adm.only": "Тек әкімшіге.",
+    "adm.post": "📥 Материал жариялау",
+    "ap.intro": "📥 Жаңа материалды қолмен жариялау.\nАвтор деректерін, тақырыпты және мәтінді сұраймын.\n/cancel — тоқтату.",
+    "ap.doctype": "Қай құжат берілсін?",
+    "ap.dt_cert": "📜 Сертификат", "ap.dt_congrat": "🎉 Құттықтау", "ap.dt_thanks": "🙏 Алғыс хат", "ap.dt_none": "🚫 Құжатсыз",
+    "ap.published": "✅ Сайтқа жарияланды!\nҚұжат (PDF) сізге жіберілді — оны авторға қайта жолдай аласыз.",
+    "ap.pubnodoc": "✅ Сайтқа жарияланды (құжатсыз).",
   },
   ru: {
     "menu.post": "📝 Опубликовать статью",
@@ -128,6 +134,12 @@ const L = {
     "adm.askbroadcast": "Введите сообщение для рассылки всем пользователям:",
     "adm.sent": "Отправлено",
     "adm.only": "Только администратору.",
+    "adm.post": "📥 Опубликовать материал",
+    "ap.intro": "📥 Ручная публикация нового материала.\nСпрошу данные автора, тему и текст.\n/cancel — отмена.",
+    "ap.doctype": "Какой документ выдать?",
+    "ap.dt_cert": "📜 Сертификат", "ap.dt_congrat": "🎉 Поздравление", "ap.dt_thanks": "🙏 Благодарственное", "ap.dt_none": "🚫 Без документа",
+    "ap.published": "✅ Опубликовано на сайте!\nДокумент (PDF) отправлен вам — можете переслать его автору.",
+    "ap.pubnodoc": "✅ Опубликовано на сайте (без документа).",
   },
 };
 const ALL = (key) => [L.kz[key], L.ru[key]];
@@ -148,7 +160,7 @@ const mainMenu = (lang) => Markup.keyboard([
 ]).resize();
 
 const adminMenu = (lang) => Markup.keyboard([
-  [L[lang]["menu.post"]],
+  [L[lang]["adm.post"]],
   [L[lang]["adm.price"], L[lang]["adm.kaspi"]],
   [L[lang]["adm.broadcast"]],
   [L[lang]["menu.myreq"], L[lang]["menu.lang"], L[lang]["menu.help"]],
@@ -327,7 +339,73 @@ const broadcastScene = new Scenes.WizardScene("broadcast",
   }
 );
 
-const stage = new Scenes.Stage([wizard, priceScene, kaspiScene, broadcastScene]);
+// ---------- админ: ручная публикация материала + выдача документа ----------
+const docTypeKb = (lang) => Markup.keyboard([
+  [L[lang]["ap.dt_cert"]],
+  [L[lang]["ap.dt_congrat"], L[lang]["ap.dt_thanks"]],
+  [L[lang]["ap.dt_none"]],
+]).oneTime().resize();
+const resolveDocType = (text) => {
+  const map = { "ap.dt_cert": "cert", "ap.dt_congrat": "congrat", "ap.dt_thanks": "thanks", "ap.dt_none": "none" };
+  for (const k in map) if (text === L.kz[k] || text === L.ru[k]) return map[k];
+  return null;
+};
+const adminPostScene = new Scenes.WizardScene("adminpost",
+  (ctx) => {
+    if (!isAdmin(ctx)) { ctx.reply(t(ctx, "adm.only")); return ctx.scene.leave(); }
+    ctx.wizard.state.data = {};
+    ctx.reply(t(ctx, "ap.intro"));
+    ctx.reply(t(ctx, "ask.name"), Markup.removeKeyboard());
+    return ctx.wizard.next();
+  },
+  (ctx) => { if (!ctx.message?.text) return ctx.reply(t(ctx, "v.text")); ctx.wizard.state.data.author_name = ctx.message.text.trim(); ctx.reply(t(ctx, "ask.cat"), Markup.keyboard(catKeyboard(langOf(ctx))).oneTime().resize()); return ctx.wizard.next(); },
+  (ctx) => { const c = canonCat(ctx.message?.text); if (!c) return ctx.reply(t(ctx, "v.cat")); ctx.wizard.state.data.category = c; ctx.reply(t(ctx, "ask.work"), Markup.removeKeyboard()); return ctx.wizard.next(); },
+  (ctx) => { if (!ctx.message?.text) return ctx.reply(t(ctx, "v.text")); ctx.wizard.state.data.work = ctx.message.text.trim(); ctx.reply(t(ctx, "ask.region")); return ctx.wizard.next(); },
+  (ctx) => { if (!ctx.message?.text) return ctx.reply(t(ctx, "v.text")); ctx.wizard.state.data.region = ctx.message.text.trim(); ctx.reply(t(ctx, "ask.title")); return ctx.wizard.next(); },
+  (ctx) => { if (!ctx.message?.text) return ctx.reply(t(ctx, "v.text")); ctx.wizard.state.data.title = ctx.message.text.trim(); ctx.reply(t(ctx, "ask.text")); return ctx.wizard.next(); },
+  (ctx) => {
+    const d = ctx.wizard.state.data;
+    if (ctx.message?.text) d.body = ctx.message.text.trim();
+    else if (ctx.message?.document) { d.article_file_id = ctx.message.document.file_id; d.article_file_name = ctx.message.document.file_name || "article"; d.body = ctx.message.caption?.trim() || d.title; }
+    else return ctx.reply(t(ctx, "v.textfile"));
+    ctx.reply(t(ctx, "ask.photo"), Markup.keyboard([[t(ctx, "btn.skip")]]).oneTime().resize());
+    return ctx.wizard.next();
+  },
+  (ctx) => {
+    const d = ctx.wizard.state.data;
+    if (ctx.message?.photo) d.photo_id = ctx.message.photo[ctx.message.photo.length - 1].file_id;
+    ctx.reply(t(ctx, "ap.doctype"), docTypeKb(langOf(ctx)));
+    return ctx.wizard.next();
+  },
+  async (ctx) => {
+    const d = ctx.wizard.state.data; const lang = langOf(ctx);
+    const dt = resolveDocType(ctx.message?.text);
+    if (!dt) return ctx.reply(t(ctx, "ap.doctype"), docTypeKb(lang));
+    await ctx.reply(t(ctx, "processing"), Markup.removeKeyboard());
+    try {
+      let photo = null;
+      if (d.photo_id) photo = await uploadTelegramFile(ctx, d.photo_id, "photo.jpg");
+      const slug = slugify(d.title);
+      await dFetch("/items/articles", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: "published", title: d.title, slug, content: textToHtml(d.body),
+          categories: d.category ? [d.category] : [], author: d.author_name,
+          featured_image: photo || null,
+          date_published: new Date().toISOString(),
+        }),
+      });
+      if (dt === "none") { await ctx.reply(t(ctx, "ap.pubnodoc"), menuFor(ctx)); }
+      else {
+        await issueCertificate({ fio: d.author_name, topic: d.title, work: d.work, region: d.region, slug, type: dt, target: ctx.from.id, lang });
+        await ctx.reply(t(ctx, "ap.published"), menuFor(ctx));
+      }
+    } catch (e) { console.error(e); await ctx.reply(t(ctx, "error") + "\n" + e.message, menuFor(ctx)); }
+    return ctx.scene.leave();
+  }
+);
+
+const stage = new Scenes.Stage([wizard, priceScene, kaspiScene, broadcastScene, adminPostScene]);
 const bot = new Telegraf(BOT_TOKEN);
 bot.use(session());
 bot.use(stage.middleware());
@@ -370,6 +448,8 @@ bot.hears(ALL("menu.myreq"), async (ctx) => {
 
 // ---------- админ: панель и настройки ----------
 bot.command("admin", (ctx) => { if (isAdmin(ctx)) ctx.reply(t(ctx, "adm.panel"), adminMenu(langOf(ctx))); });
+bot.command("publish", (ctx) => { if (isAdmin(ctx)) ctx.scene.enter("adminpost"); });
+bot.hears(ALL("adm.post"), (ctx) => { if (isAdmin(ctx)) ctx.scene.enter("adminpost"); });
 bot.hears(ALL("adm.price"), (ctx) => { if (isAdmin(ctx)) ctx.scene.enter("setprice"); });
 bot.hears(ALL("adm.kaspi"), (ctx) => { if (isAdmin(ctx)) ctx.scene.enter("setkaspi"); });
 bot.hears(ALL("adm.broadcast"), (ctx) => { if (isAdmin(ctx)) ctx.scene.enter("broadcast"); });
@@ -397,8 +477,12 @@ bot.action(/^ok:(\d+)$/, async (ctx) => {
       const l = users[req.tg_user_id]?.lang || "kz";
       ctx.telegram.sendMessage(req.tg_user_id, L[l]["au.approved"]).catch(() => {});
       // выдать сертификат (PDF) автору
-      try { await issueCertificate(req, l, slug); }
-      catch (e) { console.error("cert error:", e.message); }
+      try {
+        await issueCertificate({
+          fio: req.author_name, topic: req.title, work: req.work, region: req.region,
+          slug, type: "cert", target: req.tg_user_id, tgUser: req.tg_user_id, lang: l,
+        });
+      } catch (e) { console.error("cert error:", e.message); }
     }
   } catch (e) { console.error(e); await ctx.answerCbQuery("Қате: " + e.message, { show_alert: true }); }
 });
@@ -415,30 +499,33 @@ async function uniqueCertNumber() {
   return genCertNumber() + "-" + Date.now().toString(36); // крайний случай
 }
 
-// выдача сертификата: запись в реестр + PDF автору поверх официального бланка
-async function issueCertificate(req, lang, slug) {
+// подпись к документу по типу и языку
+const DOC_CAPTION = {
+  cert:    { kz: "Сертификатыңыз 🎓", ru: "Ваш сертификат 🎓" },
+  congrat: { kz: "Құттықтау 🎉",      ru: "Поздравление 🎉" },
+  thanks:  { kz: "Алғыс хат 🙏",      ru: "Благодарственное письмо 🙏" },
+};
+
+// выдача документа (сертификат/құттықтау/алғыс хат): запись в реестр + PDF поверх бланка.
+// target — куда отправить PDF (автору или админу). Возвращает № документа.
+async function issueCertificate({ fio, topic, work = "", region = "", slug = "", type = "cert", target, tgUser = null, lang = "kz" }) {
+  const t = DOC_CAPTION[type] ? type : "cert";
   const number = await uniqueCertNumber();
   const d = new Date();
   const p = (n) => String(n).padStart(2, "0");
   const date = p(d.getDate()) + "." + p(d.getMonth() + 1) + "." + d.getFullYear() + " жыл.";
   await dFetch("/items/certificates", {
     method: "POST", headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      number, fio: req.author_name, topic: req.title, type: "cert",
-      tg_user_id: req.tg_user_id ? String(req.tg_user_id) : null,
-    }),
+    body: JSON.stringify({ number, fio, topic, type: t, tg_user_id: tgUser ? String(tgUser) : null }),
   });
   const verifyUrl = SITE_URL + "/verify.html?n=" + encodeURIComponent(number);
   const articleUrl = slug ? SITE_URL + "/article/" + slug + "/" : SITE_URL;
   const qrPng = await QRCode.toBuffer(verifyUrl, { margin: 1, width: 300 });
-  const pdf = await makeCertificatePdf({
-    fio: req.author_name, topic: req.title,
-    work: req.work || "", region: req.region || "",
-    link: articleUrl, date, number, qrPng,
-  });
-  await bot.telegram.sendDocument(req.tg_user_id,
-    { source: pdf, filename: "certificate-" + number + ".pdf" },
-    { caption: lang === "ru" ? "Ваш сертификат 🎓" : "Сертификатыңыз 🎓" });
+  const pdf = await makeCertificatePdf({ type: t, fio, topic, work, region, link: articleUrl, date, number, qrPng });
+  if (target) await bot.telegram.sendDocument(target,
+    { source: pdf, filename: t + "-" + number + ".pdf" },
+    { caption: (DOC_CAPTION[t][lang] || DOC_CAPTION[t].kz) + "\n№ " + number });
+  return number;
 }
 bot.action(/^no:(\d+)$/, async (ctx) => {
   if (!isAdmin(ctx)) return ctx.answerCbQuery("Тек әкімшіге / Только админу", { show_alert: true });

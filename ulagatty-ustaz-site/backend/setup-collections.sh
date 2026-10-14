@@ -136,8 +136,8 @@ read -r -d '' CERTS <<'JSON' || true
     { "field": "type", "type": "string", "meta": { "interface": "select-dropdown", "width": "half",
         "options": { "choices": [
           { "text": "Сертификат", "value": "cert" },
-          { "text": "Благодарность", "value": "grat" },
-          { "text": "Поздравление", "value": "holiday" } ] } },
+          { "text": "Құттықтау / Поздравление", "value": "congrat" },
+          { "text": "Алғыс хат / Благодарственное", "value": "thanks" } ] } },
       "schema": { "default_value": "cert" } },
     { "field": "tg_user_id", "type": "string", "meta": { "interface": "input", "width": "half", "readonly": true, "hidden": true } },
     { "field": "date_issued", "type": "timestamp", "meta": { "interface": "datetime", "special": ["date-created"], "width": "half", "readonly": true } }
