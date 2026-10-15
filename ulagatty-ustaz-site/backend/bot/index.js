@@ -18,7 +18,7 @@ import { Telegraf, Scenes, session, Markup } from "telegraf";
 import { makeCertificatePdf, genCertNumber } from "./certificate.mjs";
 
 const BOT_TOKEN  = process.env.BOT_TOKEN;
-const ADMIN_CHAT = process.env.ADMIN_CHAT_ID || "";
+const ADMIN_CHAT = process.env.ADMIN_CHAT_ID || "5478445096"; // клиент (можно переопределить в .env)
 const D_URL      = (process.env.DIRECTUS_URL || "http://directus:8055").replace(/\/+$/, "");
 const D_TOKEN    = process.env.DIRECTUS_TOKEN || "";
 const SITE_URL   = (process.env.SITE_URL || "https://ulagattyustaz.kz").replace(/\/+$/, "");
@@ -174,7 +174,7 @@ const adminMenu = (lang) => Markup.keyboard([
 
 // ---------- настройки портала (цена, реквизиты Kaspi) ----------
 const SETTINGS = "/data/settings.json";
-let settings = { price: "1000", kaspi_number: "+7 700 646 4486", kaspi_name: "" };
+let settings = { price: "1000", kaspi_number: "87476341495", kaspi_name: "Гүлжаухар Н" };
 try { settings = { ...settings, ...JSON.parse(fs.readFileSync(SETTINGS, "utf8")) }; } catch {}
 function saveSettings() { try { fs.mkdirSync("/data", { recursive: true }); fs.writeFileSync(SETTINGS, JSON.stringify(settings)); } catch (e) { console.error(e); } }
 
