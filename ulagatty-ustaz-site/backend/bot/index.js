@@ -93,6 +93,11 @@ const L = {
     "ap.dt_cert": "📜 Сертификат", "ap.dt_congrat": "🎉 Құттықтау", "ap.dt_thanks": "🙏 Алғыс хат", "ap.dt_none": "🚫 Құжатсыз",
     "ap.published": "✅ Сайтқа жарияланды!\nҚұжат (PDF) сізге жіберілді — оны авторға қайта жолдай аласыз.",
     "ap.pubnodoc": "✅ Сайтқа жарияланды (құжатсыз).",
+    "adm.doc": "📜 Құжат жасау",
+    "cert.intro": "📜 Құжатты қолмен жасау (мақаласыз).\nФИО → тақырып → тип. /cancel — тоқтату.",
+    "cert.fio": "Кімге беріледі? Аты-жөнін жазыңыз:",
+    "cert.topic": "Тақырыбын жазыңыз (материал/іс-шара атауы):",
+    "cert.done": "Дайын ✅ Құжат (PDF) сізге жіберілді.",
   },
   ru: {
     "menu.post": "📝 Опубликовать статью",
@@ -146,6 +151,11 @@ const L = {
     "ap.dt_cert": "📜 Сертификат", "ap.dt_congrat": "🎉 Поздравление", "ap.dt_thanks": "🙏 Благодарственное", "ap.dt_none": "🚫 Без документа",
     "ap.published": "✅ Опубликовано на сайте!\nДокумент (PDF) отправлен вам — можете переслать его автору.",
     "ap.pubnodoc": "✅ Опубликовано на сайте (без документа).",
+    "adm.doc": "📜 Создать документ",
+    "cert.intro": "📜 Создать документ вручную (без статьи).\nФИО → тема → тип. /cancel — отмена.",
+    "cert.fio": "Кому выдаём? Введите ФИО:",
+    "cert.topic": "Введите тему (название материала/мероприятия):",
+    "cert.done": "Готово ✅ Документ (PDF) отправлен вам.",
   },
 };
 const ALL = (key) => [L.kz[key], L.ru[key]];
@@ -166,7 +176,7 @@ const mainMenu = (lang) => Markup.keyboard([
 ]).resize();
 
 const adminMenu = (lang) => Markup.keyboard([
-  [L[lang]["adm.post"]],
+  [L[lang]["adm.post"], L[lang]["adm.doc"]],
   [L[lang]["adm.price"], L[lang]["adm.kaspi"]],
   [L[lang]["adm.broadcast"]],
   [L[lang]["menu.myreq"], L[lang]["menu.lang"], L[lang]["menu.help"]],
@@ -427,7 +437,33 @@ const adminPostScene = new Scenes.WizardScene("adminpost",
   }
 );
 
-const stage = new Scenes.Stage([wizard, priceScene, kaspiScene, broadcastScene, adminPostScene]);
+// ---------- админ: сделать документ вручную (без статьи) ----------
+const certScene = new Scenes.WizardScene("cert",
+  (ctx) => {
+    if (!isAdmin(ctx)) { ctx.reply(t(ctx, "adm.only")); return ctx.scene.leave(); }
+    ctx.wizard.state.data = {};
+    ctx.reply(t(ctx, "cert.intro"));
+    ctx.reply(t(ctx, "cert.fio"), Markup.removeKeyboard());
+    return ctx.wizard.next();
+  },
+  (ctx) => { if (!ctx.message?.text) return ctx.reply(t(ctx, "v.text")); ctx.wizard.state.data.fio = ctx.message.text.trim(); ctx.reply(t(ctx, "cert.topic")); return ctx.wizard.next(); },
+  (ctx) => { if (!ctx.message?.text) return ctx.reply(t(ctx, "v.text")); ctx.wizard.state.data.topic = ctx.message.text.trim(); ctx.reply(t(ctx, "ap.work_opt"), skipKb(ctx)); return ctx.wizard.next(); },
+  (ctx) => { if (!isSkip(ctx) && ctx.message?.text) ctx.wizard.state.data.work = ctx.message.text.trim(); ctx.reply(t(ctx, "ap.region_opt"), skipKb(ctx)); return ctx.wizard.next(); },
+  (ctx) => { if (!isSkip(ctx) && ctx.message?.text) ctx.wizard.state.data.region = ctx.message.text.trim(); ctx.reply(t(ctx, "ap.doctype"), docTypeKb(langOf(ctx))); return ctx.wizard.next(); },
+  async (ctx) => {
+    const d = ctx.wizard.state.data; const lang = langOf(ctx);
+    const dt = resolveDocType(ctx.message?.text);
+    if (!dt || dt === "none") return ctx.reply(t(ctx, "ap.doctype"), docTypeKb(lang));
+    await ctx.reply(t(ctx, "processing"), Markup.removeKeyboard());
+    try {
+      const number = await issueCertificate({ fio: d.fio, topic: d.topic, work: d.work || "", region: d.region || "", slug: "", type: dt, target: ctx.from.id, lang });
+      await ctx.reply(t(ctx, "cert.done") + " №" + number, menuFor(ctx));
+    } catch (e) { console.error(e); await ctx.reply(t(ctx, "error") + "\n" + e.message, menuFor(ctx)); }
+    return ctx.scene.leave();
+  }
+);
+
+const stage = new Scenes.Stage([wizard, priceScene, kaspiScene, broadcastScene, adminPostScene, certScene]);
 const bot = new Telegraf(BOT_TOKEN);
 bot.use(session());
 bot.use(stage.middleware());
@@ -471,7 +507,9 @@ bot.hears(ALL("menu.myreq"), async (ctx) => {
 // ---------- админ: панель и настройки ----------
 bot.command("admin", (ctx) => { if (isAdmin(ctx)) ctx.reply(t(ctx, "adm.panel"), adminMenu(langOf(ctx))); });
 bot.command("publish", (ctx) => { if (isAdmin(ctx)) ctx.scene.enter("adminpost"); });
+bot.command("cert", (ctx) => { if (isAdmin(ctx)) ctx.scene.enter("cert"); });
 bot.hears(ALL("adm.post"), (ctx) => { if (isAdmin(ctx)) ctx.scene.enter("adminpost"); });
+bot.hears(ALL("adm.doc"), (ctx) => { if (isAdmin(ctx)) ctx.scene.enter("cert"); });
 bot.hears(ALL("adm.price"), (ctx) => { if (isAdmin(ctx)) ctx.scene.enter("setprice"); });
 bot.hears(ALL("adm.kaspi"), (ctx) => { if (isAdmin(ctx)) ctx.scene.enter("setkaspi"); });
 bot.hears(ALL("adm.broadcast"), (ctx) => { if (isAdmin(ctx)) ctx.scene.enter("broadcast"); });
