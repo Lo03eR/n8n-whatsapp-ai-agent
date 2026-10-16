@@ -20,9 +20,12 @@ set -euo pipefail
 API="${1:-http://localhost:8055}"
 cd "$(dirname "$0")"
 
-KZ="kk-KZ"   # казахский
+KZ="kk-KZ"   # казахский (перевод ПОЛЕЙ; как язык интерфейса в Directus недоступен!)
 RU="ru-RU"   # русский
-DEFAULT_LANG="$KZ"  # язык по умолчанию (можно сменить на ru-RU)
+# Язык ИНТЕРФЕЙСА по умолчанию. ВАЖНО: ставить только ТО, что реально есть в
+# Directus (ru-RU, en-US). kk-KZ в приложении НЕ поддерживается и ломает админку
+# (загрузку файлов/сохранение). Поэтому по умолчанию — ru-RU.
+DEFAULT_LANG="$RU"
 
 ADMIN_EMAIL="$(grep -E '^ADMIN_EMAIL=' .env | cut -d= -f2-)"
 ADMIN_PASSWORD="$(grep -E '^ADMIN_PASSWORD=' .env | cut -d= -f2-)"
