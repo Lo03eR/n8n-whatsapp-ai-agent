@@ -443,6 +443,17 @@ h3.title { font-size: clamp(1.3rem, 2.4vw, 1.7rem); }
 .ill-6 { background: linear-gradient(135deg, #b5471f, #e07a3c); }
 .cover-pattern { position: absolute; inset: 0; opacity: .3; }
 
+/* фирменная заглушка для статей без обложки (крупные .cover с градиентом) */
+.cover[class*="ill-"] { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 9px; }
+.cover[class*="ill-"]::before {
+  content: ""; width: 44px; height: 44px; opacity: .72;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' fill='none' stroke='white' stroke-width='3.4' stroke-linejoin='round' stroke-linecap='round'%3E%3Cpath d='M32 20 C27 16,18 16,14 18 L14 46 C18 44,27 44,32 48 C37 44,46 44,50 46 L50 18 C46 16,37 16,32 20 Z'/%3E%3Cpath d='M32 20 L32 48'/%3E%3C/svg%3E") center/contain no-repeat;
+}
+.cover[class*="ill-"]::after {
+  content: "ҰЛАҒАТТЫ ҰСТАЗ.KZ"; color: rgba(255,255,255,.72);
+  font-weight: 800; font-size: .72rem; letter-spacing: .12em; text-align: center;
+}
+
 .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(120%); background: var(--green-800); color: #fff; padding: 14px 22px; border-radius: 999px; box-shadow: var(--shadow-lg); font-weight: 600; z-index: 300; transition: .3s; }
 .toast.show { transform: translateX(-50%) translateY(0); }
 
