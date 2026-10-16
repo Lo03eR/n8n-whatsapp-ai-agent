@@ -38,13 +38,23 @@ function bucketOf(cats) {
   return "other";
 }
 const imgUrl = (id) => (id ? DPUB + "/assets/" + id : null);
+// положение/размер обложки (поля img_*) → CSS-переменные, раздельно ПК/телефон
+const san = (v) => String(v || "").replace(/[^a-z0-9%.\s-]/gi, "").trim();
+const imgStyle = (a) => {
+  let s = "";
+  if (san(a.img_pos)) s += `--imgpos:${san(a.img_pos)};`;
+  if (san(a.img_size)) s += `--imgsize:${san(a.img_size)};`;
+  if (san(a.img_pos_mobile)) s += `--imgpos-m:${san(a.img_pos_mobile)};`;
+  if (san(a.img_size_mobile)) s += `--imgsize-m:${san(a.img_size_mobile)};`;
+  return s;
+};
 const CAL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>';
 const EYE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>';
 
 function cardHtml(a) {
   const b = bucketOf(a.categories);
   const cover = a.featured_image
-    ? `<div class="cover" style="background-image:url('${esc(imgUrl(a.featured_image))}');background-size:cover;background-position:center"></div>`
+    ? `<div class="cover" style="background-image:url('${esc(imgUrl(a.featured_image))}');${imgStyle(a)}"></div>`
     : `<div class="cover ill-${(Number(a.id) % 6) + 1}"></div>`;
   return `<a class="news-card" href="/article/${encodeURIComponent(a.slug)}/">` +
     `<div class="nmedia">${cover}<span class="ncat">${esc(CAT_LABEL[b])}</span></div>` +
@@ -59,7 +69,7 @@ function page(a, related) {
   const url = `${SITE}/article/${encodeURIComponent(a.slug)}/`;
   const img = imgUrl(a.featured_image);
   const hero = img
-    ? `<img src="${esc(img)}" alt="${esc(title)}" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block">`
+    ? `<div class="cover" style="background-image:url('${esc(img)}');${imgStyle(a)}"></div>`
     : `<div class="cover ill-${(Number(a.id) % 6) + 1}"></div>`;
   const ld = {
     "@context": "https://schema.org", "@type": "NewsArticle", headline: title,
@@ -134,7 +144,7 @@ fetch(API+"/items/articles/"+id,{method:"PATCH",headers:{"Content-Type":"applica
 // ---- данные ----
 let arts = [];
 try {
-  const r = await fetch(D + "/items/articles?filter[status][_eq]=published&sort=-date_published&fields=id,title,slug,date_published,categories,content,featured_image,author,views&limit=2000");
+  const r = await fetch(D + "/items/articles?filter[status][_eq]=published&sort=-date_published&fields=id,title,slug,date_published,categories,content,featured_image,author,views,img_pos,img_size,img_pos_mobile,img_size_mobile&limit=2000");
   const j = await r.json();
   arts = (j.data || []).filter((a) => a.slug);
 } catch (e) { console.error("Directus error:", e.message); process.exit(1); }

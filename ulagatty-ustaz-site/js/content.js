@@ -77,13 +77,25 @@
     return n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1).replace(".0", "") + "k" : String(n);
   }
 
+  /* положение/размер обложки из Directus (раздельно ПК/телефон) → CSS-переменные.
+     Значения из выпадашек; на всякий случай чистим от посторонних символов. */
+  function imgStyle(a) {
+    var san = function (v) { return String(v || "").replace(/[^a-z0-9%.\s-]/gi, "").trim(); };
+    var pos = san(a.img_pos), size = san(a.img_size), posM = san(a.img_pos_mobile), sizeM = san(a.img_size_mobile);
+    var s = "";
+    if (pos) s += "--imgpos:" + pos + ";";
+    if (size) s += "--imgsize:" + size + ";";
+    if (posM) s += "--imgpos-m:" + posM + ";";
+    if (sizeM) s += "--imgsize-m:" + sizeM + ";";
+    return s;
+  }
+
   /* media-блок карточки: реальная картинка или градиент-заглушка */
   function media(article, withCat) {
     var cover;
     if (article.featured_image) {
       cover = '<div class="cover" style="background-image:url(\'' +
-        String(article.featured_image).replace(/'/g, "%27") +
-        '\');background-size:cover;background-position:center"></div>';
+        String(article.featured_image).replace(/'/g, "%27") + '\');' + imgStyle(article) + '"></div>';
     } else {
       cover = '<div class="cover ' + illFor(article) + '"></div>';
     }
@@ -119,7 +131,7 @@
         var b = bucketOf(art);
         var i18nKey = { ustaz: "sec.ustaz", school: "sec.school", tarbie: "sec.tarbie", method: "sec.method", other: "sec.allnews" }[b];
         var cover = art.featured_image
-          ? '<div class="cover" style="background-image:url(\'' + String(art.featured_image).replace(/'/g, "%27") + '\');background-size:cover;background-position:center"></div>'
+          ? '<div class="cover" style="background-image:url(\'' + String(art.featured_image).replace(/'/g, "%27") + '\');' + imgStyle(art) + '"></div>'
           : '<div class="cover ' + illFor(art) + '"></div>';
         var a = document.createElement("a");
         a.className = "slide";
@@ -141,7 +153,7 @@
         a.className = "side-item";
         a.href = hrefFor(art);
         var thumb = art.featured_image
-          ? '<span class="sthumb" style="background-image:url(\'' + String(art.featured_image).replace(/'/g, "%27") + '\');background-size:cover;background-position:center"></span>'
+          ? '<span class="sthumb" style="background-image:url(\'' + String(art.featured_image).replace(/'/g, "%27") + '\');' + imgStyle(art) + '"></span>'
           : '<span class="sthumb ' + illFor(art) + '"></span>';
         a.innerHTML = thumb + "<div><h4>" + safeTitle(art.title) + '</h4><div class="sdate">' + fmtDate(art.date) + "</div></div>";
         side.appendChild(a);
@@ -261,7 +273,7 @@
     var hero = document.getElementById("artHero");
     if (hero) {
       hero.innerHTML = art.featured_image
-        ? '<img src="' + String(art.featured_image).replace(/"/g, "%22") + '" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block">'
+        ? '<div class="cover" style="background-image:url(\'' + String(art.featured_image).replace(/'/g, "%27") + '\');' + imgStyle(art) + '"></div>'
         : '<div class="cover ' + illFor(art) + '"></div>';
     }
 
@@ -370,6 +382,8 @@
       content_html: row.content || "",
       featured_image: row.featured_image ? (base + "/assets/" + row.featured_image) : null,
       views: row.views || 0,
+      img_pos: row.img_pos, img_size: row.img_size,
+      img_pos_mobile: row.img_pos_mobile, img_size_mobile: row.img_size_mobile,
     };
   }
 
@@ -377,7 +391,7 @@
     var url = base + "/items/articles"
       + "?filter[status][_eq]=published"
       + "&sort=-date_published"
-      + "&fields=id,title,slug,date_published,categories,featured_image,views"
+      + "&fields=id,title,slug,date_published,categories,featured_image,views,img_pos,img_size,img_pos_mobile,img_size_mobile"
       + "&limit=500";   // content грузим отдельно на странице статьи — быстрее списки
     return fetch(url, { cache: "no-store" })
       .then(function (r) { return r.ok ? r.json() : null; })

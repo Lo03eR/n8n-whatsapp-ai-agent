@@ -78,6 +78,14 @@ read -r -d '' ARTICLES <<'JSON' || true
     { "field": "categories", "type": "json", "meta": { "interface": "tags", "special": ["cast-json"], "options": { "placeholder": "Ұстаз, Мектеп тынысы, Тәрбие сағаты, Әдістеме" }, "note": "Категории — те же названия, что на сайте" } },
     { "field": "content", "type": "text", "meta": { "interface": "input-rich-text-html", "note": "Текст статьи" } },
     { "field": "featured_image", "type": "uuid", "meta": { "interface": "file-image", "special": ["file"], "width": "half", "note": "Обложка" } },
+    { "field": "img_pos", "type": "string", "meta": { "interface": "select-dropdown", "width": "half", "note": "Положение фото (ПК)",
+        "options": { "choices": [ {"text":"По центру","value":"center"},{"text":"Сверху","value":"center top"},{"text":"Снизу","value":"center bottom"},{"text":"Слева","value":"left center"},{"text":"Справа","value":"right center"} ] } }, "schema": { "default_value": "center" } },
+    { "field": "img_size", "type": "string", "meta": { "interface": "select-dropdown", "width": "half", "note": "Размер фото (ПК)",
+        "options": { "choices": [ {"text":"Заполнить","value":"cover"},{"text":"Целиком","value":"contain"},{"text":"Крупнее ×1.2","value":"120%"},{"text":"Крупнее ×1.5","value":"150%"},{"text":"Крупнее ×2","value":"200%"} ] } }, "schema": { "default_value": "cover" } },
+    { "field": "img_pos_mobile", "type": "string", "meta": { "interface": "select-dropdown", "width": "half", "note": "Положение фото (телефон). Пусто = как ПК",
+        "options": { "choices": [ {"text":"По центру","value":"center"},{"text":"Сверху","value":"center top"},{"text":"Снизу","value":"center bottom"},{"text":"Слева","value":"left center"},{"text":"Справа","value":"right center"} ] } } },
+    { "field": "img_size_mobile", "type": "string", "meta": { "interface": "select-dropdown", "width": "half", "note": "Размер фото (телефон). Пусто = как ПК",
+        "options": { "choices": [ {"text":"Заполнить","value":"cover"},{"text":"Целиком","value":"contain"},{"text":"Крупнее ×1.2","value":"120%"},{"text":"Крупнее ×1.5","value":"150%"},{"text":"Крупнее ×2","value":"200%"} ] } } },
     { "field": "author", "type": "string", "meta": { "interface": "input", "width": "half", "options": { "placeholder": "ФИО автора" } } },
     { "field": "views", "type": "integer", "meta": { "interface": "input", "width": "half", "readonly": true, "note": "Счётчик просмотров" }, "schema": { "default_value": 0 } }
   ]
