@@ -90,12 +90,12 @@
     return s;
   }
 
-  /* media-блок карточки: реальная картинка или градиент-заглушка */
+  /* media-блок карточки: реальная картинка (целиком, в своих пропорциях) или градиент-заглушка */
   function media(article, withCat) {
-    var cover;
+    var cover, cls = "";
     if (article.featured_image) {
-      cover = '<div class="cover" style="background-image:url(\'' +
-        String(article.featured_image).replace(/'/g, "%27") + '\');' + imgStyle(article) + '"></div>';
+      cover = '<img class="ncover" loading="lazy" alt="" src="' + String(article.featured_image).replace(/"/g, "%22") + '">';
+      cls = " nmedia--img";
     } else {
       cover = '<div class="cover ' + illFor(article) + '"></div>';
     }
@@ -105,7 +105,7 @@
       var i18nKey = { ustaz: "sec.ustaz", school: "sec.school", tarbie: "sec.tarbie", method: "sec.method", other: "sec.allnews" }[b];
       cat = '<span class="ncat" data-i18n="' + i18nKey + '"></span>';
     }
-    return '<div class="nmedia">' + cover + cat + "</div>";
+    return '<div class="nmedia' + cls + '">' + cover + cat + "</div>";
   }
 
   /* карточка .news-card */
@@ -272,9 +272,12 @@
 
     var hero = document.getElementById("artHero");
     if (hero) {
-      hero.innerHTML = art.featured_image
-        ? '<div class="cover" style="background-image:url(\'' + String(art.featured_image).replace(/'/g, "%27") + '\');' + imgStyle(art) + '"></div>'
-        : '<div class="cover ' + illFor(art) + '"></div>';
+      if (art.featured_image) {
+        hero.innerHTML = '<img class="ncover" loading="lazy" alt="" src="' + String(art.featured_image).replace(/"/g, "%22") + '">';
+        hero.classList.add("article-hero--img");
+      } else {
+        hero.innerHTML = '<div class="cover ' + illFor(art) + '"></div>';
+      }
     }
 
     var body = document.getElementById("artBody");

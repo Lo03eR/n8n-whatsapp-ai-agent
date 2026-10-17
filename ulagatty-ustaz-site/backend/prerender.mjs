@@ -54,10 +54,11 @@ const EYE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-w
 function cardHtml(a) {
   const b = bucketOf(a.categories);
   const cover = a.featured_image
-    ? `<div class="cover" style="background-image:url('${esc(imgUrl(a.featured_image))}');${imgStyle(a)}"></div>`
+    ? `<img class="ncover" loading="lazy" alt="" src="${esc(imgUrl(a.featured_image))}">`
     : `<div class="cover ill-${(Number(a.id) % 6) + 1}"></div>`;
+  const nmcls = a.featured_image ? "nmedia nmedia--img" : "nmedia";
   return `<a class="news-card" href="/article/${encodeURIComponent(a.slug)}/">` +
-    `<div class="nmedia">${cover}<span class="ncat">${esc(CAT_LABEL[b])}</span></div>` +
+    `<div class="${nmcls}">${cover}<span class="ncat">${esc(CAT_LABEL[b])}</span></div>` +
     `<div class="nbody"><h3>${esc(strip(a.title))}</h3>` +
     `<span class="ndate">${CAL}${fmtDate(a.date_published)}</span></div></a>`;
 }
@@ -69,8 +70,9 @@ function page(a, related) {
   const url = `${SITE}/article/${encodeURIComponent(a.slug)}/`;
   const img = imgUrl(a.featured_image);
   const hero = img
-    ? `<div class="cover" style="background-image:url('${esc(img)}');${imgStyle(a)}"></div>`
+    ? `<img class="ncover" loading="lazy" alt="${esc(title)}" src="${esc(img)}">`
     : `<div class="cover ill-${(Number(a.id) % 6) + 1}"></div>`;
+  const heroCls = img ? "article-hero article-hero--img reveal" : "article-hero reveal";
   const ld = {
     "@context": "https://schema.org", "@type": "NewsArticle", headline: title,
     datePublished: a.date_published || undefined, author: { "@type": "Organization", name: "Ұлағатты Ұстаз.kz" },
@@ -117,7 +119,7 @@ ${img ? `<meta property="og:image" content="${esc(img)}">` : ""}
         <span>${CAL}${fmtDate(a.date_published)}</span>
         <span>${EYE}<b>${Number(a.views) || 0}</b> қаралым</span>
       </div>
-      <div class="article-hero reveal">${hero}</div>
+      <div class="${heroCls}">${hero}</div>
       <div class="article-body reveal">${a.content || ""}</div>
       <div class="sec-title reveal" style="margin-top:40px"><h2 style="font-size:1.4rem">Ұқсас материалдар</h2></div>
       <div class="feed feed--3 reveal">${related.map(cardHtml).join("")}</div>
