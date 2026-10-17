@@ -587,7 +587,8 @@ h3.title { font-size: clamp(1.3rem, 2.4vw, 1.7rem); }
 /* --- single article --- */
 .article-wrap { max-width: 820px; margin-inline: auto; }
 .article-hero { aspect-ratio: 16/9; border-radius: var(--radius-lg); overflow: hidden; margin: 22px 0; box-shadow: var(--shadow); position: relative; }
-.article-hero.article-hero--img { aspect-ratio: auto; height: auto; }
+.article-hero.article-hero--img { aspect-ratio: auto; height: auto; background: #eef1f4; text-align: center; }
+.article-hero.article-hero--img .ncover { max-height: 78vh; width: auto; max-width: 100%; height: auto; margin: 0 auto; }
 .article-hero .cover { position: absolute; inset: 0; background-size: var(--imgsize,cover); background-position: var(--imgpos,center); }
 /* обложка: своё положение/размер на телефоне (поля img_*_mobile) */
 @media (max-width: 640px) {
