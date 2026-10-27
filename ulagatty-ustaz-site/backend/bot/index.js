@@ -100,6 +100,18 @@ const L = {
     "cert.fio": "Кімге беріледі? Аты-жөнін жазыңыз:",
     "cert.topic": "Тақырыбын жазыңыз (материал/іс-шара атауы):",
     "cert.done": "Дайын ✅ Құжат (PDF) сізге жіберілді.",
+    "adm.ads": "📢 Жарнама",
+    "ads.panel": "📢 Сайттағы жарнама",
+    "ads.status": "Күйі",
+    "ads.on": "✅ Қосулы", "ads.off": "⛔ Өшірулі", "ads.empty": "— бос —",
+    "ads.b_edit": "✏️ Өзгерту", "ads.b_on": "✅ Қосу", "ads.b_off": "⛔ Өшіру", "ads.b_del": "🗑 Жою",
+    "ads.q_title": "Жарнама тақырыбын жазыңыз (мыс.: ПЛАСТИК ТЕРЕЗЕ ЖӘНЕ ЕСІК):",
+    "ads.q_text": "Қысқа сипаттама (мыс.: Сапа · Жылу · Кепілдік):",
+    "ads.q_phone": "Телефон (міндетті емес):",
+    "ads.q_link": "Сілтеме https://... (міндетті емес):",
+    "ads.q_img": "Баннер суретін жіберіңіз (міндетті емес — болмаса мәтінмен көрсетіледі):",
+    "ads.saved": "✅ Жарнама сақталды және сайтта қосылды.",
+    "ads.on_done": "✅ Жарнама қосылды.", "ads.off_done": "⛔ Жарнама өшірілді.", "ads.del_done": "🗑 Жарнама жойылды.",
   },
   ru: {
     "menu.post": "📝 Опубликовать статью",
@@ -160,6 +172,18 @@ const L = {
     "cert.fio": "Кому выдаём? Введите ФИО:",
     "cert.topic": "Введите тему (название материала/мероприятия):",
     "cert.done": "Готово ✅ Документ (PDF) отправлен вам.",
+    "adm.ads": "📢 Реклама",
+    "ads.panel": "📢 Реклама на сайте",
+    "ads.status": "Статус",
+    "ads.on": "✅ Включена", "ads.off": "⛔ Выключена", "ads.empty": "— пусто —",
+    "ads.b_edit": "✏️ Изменить", "ads.b_on": "✅ Включить", "ads.b_off": "⛔ Выключить", "ads.b_del": "🗑 Удалить",
+    "ads.q_title": "Введите заголовок рекламы (напр.: ПЛАСТИКОВЫЕ ОКНА И ДВЕРИ):",
+    "ads.q_text": "Короткое описание (напр.: Качество · Тепло · Гарантия):",
+    "ads.q_phone": "Телефон (необязательно):",
+    "ads.q_link": "Ссылка https://... (необязательно):",
+    "ads.q_img": "Пришлите картинку-баннер (необязательно — без неё покажем текстом):",
+    "ads.saved": "✅ Реклама сохранена и включена на сайте.",
+    "ads.on_done": "✅ Реклама включена.", "ads.off_done": "⛔ Реклама выключена.", "ads.del_done": "🗑 Реклама удалена.",
   },
 };
 const ALL = (key) => [L.kz[key], L.ru[key]];
@@ -186,7 +210,7 @@ const mainMenu = (lang) => Markup.keyboard([
 const adminMenu = (lang) => Markup.keyboard([
   [L[lang]["adm.post"], L[lang]["adm.doc"]],
   [L[lang]["adm.price"], L[lang]["adm.kaspi"]],
-  [L[lang]["adm.broadcast"]],
+  [L[lang]["adm.broadcast"], L[lang]["adm.ads"]],
   [L[lang]["menu.myreq"], L[lang]["menu.lang"], L[lang]["menu.help"]],
 ]).resize();
 
@@ -482,7 +506,44 @@ const certScene = new Scenes.WizardScene("cert",
   }
 );
 
-const stage = new Scenes.Stage([wizard, priceScene, kaspiScene, broadcastScene, adminPostScene, certScene]);
+// ---------- админ: управление рекламой (пишем в коллекцию ads в Directus) ----------
+async function getAd() { try { const j = await dFetch("/items/ads"); return j.data || {}; } catch { return {}; } }
+async function patchAd(data) { return dFetch("/items/ads", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(data) }); }
+async function adPanel(ctx) {
+  const ad = await getAd();
+  const enabled = ad.enabled !== false;
+  const lines = [t(ctx, "ads.panel"), "", t(ctx, "ads.status") + ": " + (enabled ? t(ctx, "ads.on") : t(ctx, "ads.off"))];
+  lines.push(ad.title ? ("📌 " + ad.title) : t(ctx, "ads.empty"));
+  if (ad.text) lines.push(ad.text);
+  if (ad.phone) lines.push("📞 " + ad.phone);
+  if (ad.link) lines.push("🔗 " + ad.link);
+  if (ad.image) lines.push("🖼 сурет / картинка ✓");
+  await ctx.reply(lines.join("\n"), Markup.inlineKeyboard([
+    [Markup.button.callback(t(ctx, "ads.b_edit"), "ad:edit")],
+    [Markup.button.callback(enabled ? t(ctx, "ads.b_off") : t(ctx, "ads.b_on"), enabled ? "ad:off" : "ad:on")],
+    [Markup.button.callback(t(ctx, "ads.b_del"), "ad:del")],
+  ]));
+}
+const adsScene = new Scenes.WizardScene("adsedit",
+  (ctx) => { if (!isAdmin(ctx)) { ctx.reply(t(ctx, "adm.only")); return ctx.scene.leave(); } ctx.wizard.state.d = {}; ctx.reply(t(ctx, "ads.q_title"), Markup.removeKeyboard()); return ctx.wizard.next(); },
+  (ctx) => { if (!ctx.message?.text) return ctx.reply(t(ctx, "ads.q_title")); ctx.wizard.state.d.title = ctx.message.text.trim(); ctx.reply(t(ctx, "ads.q_text")); return ctx.wizard.next(); },
+  (ctx) => { if (!ctx.message?.text) return ctx.reply(t(ctx, "ads.q_text")); ctx.wizard.state.d.text = ctx.message.text.trim(); ctx.reply(t(ctx, "ads.q_phone"), skipKb(ctx)); return ctx.wizard.next(); },
+  (ctx) => { if (!isSkip(ctx) && ctx.message?.text) ctx.wizard.state.d.phone = ctx.message.text.trim(); ctx.reply(t(ctx, "ads.q_link"), skipKb(ctx)); return ctx.wizard.next(); },
+  (ctx) => { if (!isSkip(ctx) && ctx.message?.text) ctx.wizard.state.d.link = ctx.message.text.trim(); ctx.reply(t(ctx, "ads.q_img"), skipKb(ctx)); return ctx.wizard.next(); },
+  async (ctx) => {
+    const d = ctx.wizard.state.d;
+    await ctx.reply(t(ctx, "processing"), Markup.removeKeyboard());
+    try {
+      if (ctx.message?.photo) d.image = await uploadTelegramFile(ctx, ctx.message.photo[ctx.message.photo.length - 1].file_id, "ad.jpg");
+      await patchAd({ enabled: true, title: d.title, text: d.text || "", phone: d.phone || "", link: d.link || "", ...(d.image ? { image: d.image } : {}) });
+      await ctx.reply(t(ctx, "ads.saved"), menuFor(ctx));
+      await adPanel(ctx);
+    } catch (e) { console.error(e); await ctx.reply(t(ctx, "error") + "\n" + e.message, menuFor(ctx)); }
+    return ctx.scene.leave();
+  }
+);
+
+const stage = new Scenes.Stage([wizard, priceScene, kaspiScene, broadcastScene, adminPostScene, certScene, adsScene]);
 const bot = new Telegraf(BOT_TOKEN);
 bot.use(session());
 bot.use(stage.middleware());
@@ -529,6 +590,12 @@ bot.command("publish", (ctx) => { if (isAdmin(ctx)) ctx.scene.enter("adminpost")
 bot.command("cert", (ctx) => { if (isAdmin(ctx)) ctx.scene.enter("cert"); });
 bot.hears(ALL("adm.post"), (ctx) => { if (isAdmin(ctx)) ctx.scene.enter("adminpost"); });
 bot.hears(ALL("adm.doc"), (ctx) => { if (isAdmin(ctx)) ctx.scene.enter("cert"); });
+bot.command("ads", (ctx) => { if (isAdmin(ctx)) adPanel(ctx); });
+bot.hears(ALL("adm.ads"), (ctx) => { if (isAdmin(ctx)) adPanel(ctx); });
+bot.action("ad:edit", (ctx) => { if (!isAdmin(ctx)) return ctx.answerCbQuery(t(ctx, "adm.only"), { show_alert: true }); ctx.answerCbQuery(); return ctx.scene.enter("adsedit"); });
+bot.action("ad:on",  async (ctx) => { if (!isAdmin(ctx)) return ctx.answerCbQuery(); try { await patchAd({ enabled: true }); } catch (e) { console.error(e); } await ctx.answerCbQuery(t(ctx, "ads.on_done")); return adPanel(ctx); });
+bot.action("ad:off", async (ctx) => { if (!isAdmin(ctx)) return ctx.answerCbQuery(); try { await patchAd({ enabled: false }); } catch (e) { console.error(e); } await ctx.answerCbQuery(t(ctx, "ads.off_done")); return adPanel(ctx); });
+bot.action("ad:del", async (ctx) => { if (!isAdmin(ctx)) return ctx.answerCbQuery(); try { await patchAd({ enabled: false, title: "", text: "", phone: "", link: "", image: null }); } catch (e) { console.error(e); } await ctx.answerCbQuery(t(ctx, "ads.del_done")); return adPanel(ctx); });
 bot.hears(ALL("adm.price"), (ctx) => { if (isAdmin(ctx)) ctx.scene.enter("setprice"); });
 bot.hears(ALL("adm.kaspi"), (ctx) => { if (isAdmin(ctx)) ctx.scene.enter("setkaspi"); });
 bot.hears(ALL("adm.broadcast"), (ctx) => { if (isAdmin(ctx)) ctx.scene.enter("broadcast"); });
