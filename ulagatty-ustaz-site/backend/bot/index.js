@@ -57,10 +57,12 @@ const L = {
     "ask.work": "Жұмыс орныңызды жазыңыз (мекеме атауы):",
     "ask.region": "Ауданыңыз бен облысыңызды жазыңыз (мыс.: Жетісай ауданы, Түркістан облысы):",
     "ask.title": "Мақала тақырыбын жазыңыз:",
-    "ask.text": "Мақала мәтінін жіберіңіз (мәтінмен немесе Word/PDF файлмен):",
+    "ask.text": "Мақала мәтінін жіберіңіз.\nМәтін ұзын болса — бірнеше хабарламамен жіберуге болады (Telegram ұзын мәтінді өзі бөліп жібереді). Барлығын жібергеннен кейін «✅ Дайын» батырмасын басыңыз.\nНемесе Word/PDF файл тіркеңіз.",
+    "ask.more": "Қабылдадым ✅ Жалғастыра беріңіз немесе «✅ Дайын» басыңыз.",
     "ask.photo": "Мақала суретін жіберіңіз (міндетті емес).",
     "ask.check": "Соңғы қадам: төлем чегін PDF файл түрінде жіберіңіз 🧾",
     "btn.skip": "⏭ Өткізу",
+    "btn.done": "✅ Дайын",
     "v.text": "Мәтінмен жазыңыз, өтінемін.",
     "v.cat": "Батырмалардан санатты таңдаңыз.",
     "v.textfile": "Мәтін немесе файл жіберіңіз.",
@@ -115,10 +117,12 @@ const L = {
     "ask.work": "Укажите место работы (название учреждения):",
     "ask.region": "Укажите район и область (напр.: Жетысайский район, Туркестанская область):",
     "ask.title": "Напишите тему статьи:",
-    "ask.text": "Пришлите текст статьи (текстом или файлом Word/PDF):",
+    "ask.text": "Пришлите текст статьи.\nЕсли текст длинный — можно несколькими сообщениями (Telegram сам делит длинный текст на части). Когда отправите всё — нажмите «✅ Готово».\nИли прикрепите файл Word/PDF.",
+    "ask.more": "Принял ✅ Продолжайте или нажмите «✅ Готово».",
     "ask.photo": "Пришлите фото к статье (необязательно).",
     "ask.check": "Последний шаг: пришлите чек об оплате PDF-файлом 🧾",
     "btn.skip": "⏭ Пропустить",
+    "btn.done": "✅ Готово",
     "v.text": "Напишите, пожалуйста, текстом.",
     "v.cat": "Выберите категорию кнопкой.",
     "v.textfile": "Пришлите текст или файл.",
@@ -168,6 +172,10 @@ function save() { try { fs.mkdirSync("/data", { recursive: true }); fs.writeFile
 const langOf = (ctx) => users[ctx.from.id]?.lang || "kz";
 function setLang(ctx, l) { users[ctx.from.id] = { ...(users[ctx.from.id] || {}), lang: l }; save(); }
 const t = (ctx, key) => L[langOf(ctx)][key];
+
+// приём длинного текста из нескольких сообщений: кнопка «Готово» и её проверка
+const textKb = (ctx) => Markup.keyboard([[t(ctx, "btn.done")]]).resize();
+const isTextDone = (ctx) => !!ctx.message?.text && (ctx.message.text === L.kz["btn.done"] || ctx.message.text === L.ru["btn.done"]);
 
 const mainMenu = (lang) => Markup.keyboard([
   [L[lang]["menu.post"]],
@@ -261,19 +269,26 @@ const wizard = new Scenes.WizardScene(
   (ctx) => {
     if (!ctx.message?.text) return ctx.reply(t(ctx, "v.text"));
     ctx.wizard.state.data.title = ctx.message.text.trim();
-    ctx.reply(t(ctx, "ask.text"));
+    ctx.reply(t(ctx, "ask.text"), textKb(ctx));
     return ctx.wizard.next();
   },
   (ctx) => {
     const d = ctx.wizard.state.data;
-    if (ctx.message?.text) d.body = ctx.message.text.trim();
-    else if (ctx.message?.document) {
+    // «Готово» — текст собран, идём к фото
+    if (isTextDone(ctx)) {
+      if (!d.body && !d.article_file_id) return ctx.reply(t(ctx, "v.textfile"), textKb(ctx));
+      ctx.reply(t(ctx, "ask.photo"), Markup.keyboard([[t(ctx, "btn.skip")]]).oneTime().resize());
+      return ctx.wizard.next();
+    }
+    // иначе — накапливаем текст из нескольких сообщений (Telegram режет длинный текст)
+    if (ctx.message?.text) {
+      d.body = (d.body ? d.body + "\n\n" : "") + ctx.message.text.trim();
+    } else if (ctx.message?.document) {
       d.article_file_id = ctx.message.document.file_id;
       d.article_file_name = ctx.message.document.file_name || "article";
-      d.body = ctx.message.caption?.trim() || "(файл)";
-    } else return ctx.reply(t(ctx, "v.textfile"));
-    ctx.reply(t(ctx, "ask.photo"), Markup.keyboard([[t(ctx, "btn.skip")]]).oneTime().resize());
-    return ctx.wizard.next();
+      if (ctx.message.caption) d.body = (d.body ? d.body + "\n\n" : "") + ctx.message.caption.trim();
+    } else return ctx.reply(t(ctx, "v.textfile"), textKb(ctx));
+    return ctx.reply(t(ctx, "ask.more"), textKb(ctx)); // остаёмся на шаге, ждём ещё/«Готово»
   },
   (ctx) => {
     const d = ctx.wizard.state.data;
@@ -401,14 +416,18 @@ const adminPostScene = new Scenes.WizardScene("adminpost",
     return ctx.wizard.next();
   },
   (ctx) => { if (!ctx.message?.text) return ctx.reply(t(ctx, "v.text")); ctx.wizard.state.data.title = ctx.message.text.trim(); ctx.reply(t(ctx, "ask.cat"), Markup.keyboard(catKeyboard(langOf(ctx))).oneTime().resize()); return ctx.wizard.next(); },
-  (ctx) => { const c = canonCat(ctx.message?.text); if (!c) return ctx.reply(t(ctx, "v.cat")); ctx.wizard.state.data.category = c; ctx.reply(t(ctx, "ask.text"), Markup.removeKeyboard()); return ctx.wizard.next(); },
+  (ctx) => { const c = canonCat(ctx.message?.text); if (!c) return ctx.reply(t(ctx, "v.cat")); ctx.wizard.state.data.category = c; ctx.reply(t(ctx, "ask.text"), textKb(ctx)); return ctx.wizard.next(); },
   (ctx) => {
     const d = ctx.wizard.state.data;
-    if (ctx.message?.text) d.body = ctx.message.text.trim();
-    else if (ctx.message?.document) { d.body = ctx.message.caption?.trim() || d.title; }
-    else return ctx.reply(t(ctx, "v.textfile"));
-    ctx.reply(t(ctx, "ask.photo"), skipKb(ctx));
-    return ctx.wizard.next();
+    if (isTextDone(ctx)) {
+      if (!d.body) return ctx.reply(t(ctx, "v.textfile"), textKb(ctx));
+      ctx.reply(t(ctx, "ask.photo"), skipKb(ctx));
+      return ctx.wizard.next();
+    }
+    if (ctx.message?.text) d.body = (d.body ? d.body + "\n\n" : "") + ctx.message.text.trim();
+    else if (ctx.message?.document) { if (ctx.message.caption) d.body = (d.body ? d.body + "\n\n" : "") + ctx.message.caption.trim(); else if (!d.body) d.body = d.title; }
+    else return ctx.reply(t(ctx, "v.textfile"), textKb(ctx));
+    return ctx.reply(t(ctx, "ask.more"), textKb(ctx));
   },
   (ctx) => {
     const d = ctx.wizard.state.data;
