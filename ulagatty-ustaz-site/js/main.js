@@ -22,6 +22,35 @@ document.addEventListener("DOMContentLoaded", () => {
   mobileNav && mobileNav.addEventListener("click", (e) => { if (e.target === mobileNav) closeNav(); });
   document.querySelectorAll(".mobile-nav__panel a").forEach(a => a.addEventListener("click", closeNav));
 
+  /* ---- поиск по статьям (шапка + мобильное меню) ---- */
+  document.querySelectorAll(".hsearch").forEach((form) => {
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+      const inp = form.querySelector("input");
+      const q = (inp && inp.value || "").trim();
+      if (q) location.href = "/category.html?q=" + encodeURIComponent(q);
+    });
+  });
+
+  /* ---- тёмная тема ---- */
+  (function () {
+    const root = document.documentElement;
+    const metaTC = document.querySelector('meta[name="theme-color"]');
+    function setTheme(t) {
+      if (t === "dark") root.setAttribute("data-theme", "dark"); else root.removeAttribute("data-theme");
+      if (metaTC) metaTC.content = (t === "dark" ? "#0f1512" : "#2aa564");
+      try { localStorage.uu_theme = t; } catch (e) {}
+    }
+    document.addEventListener("click", (e) => {
+      if (e.target.closest("#themeToggle")) setTheme(root.getAttribute("data-theme") === "dark" ? "light" : "dark");
+    });
+  })();
+
+  /* ---- PWA: регистрация service worker ---- */
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => { navigator.serviceWorker.register("/sw.js").catch(() => {}); });
+  }
+
   /* ---- reveal on scroll (with safe fallbacks) ---- */
   const revealEls = document.querySelectorAll(".reveal");
   if ("IntersectionObserver" in window) {

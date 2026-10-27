@@ -56,7 +56,7 @@ const EYE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-w
 function cardHtml(a) {
   const b = bucketOf(a.categories);
   const cover = a.featured_image
-    ? `<img class="ncover" loading="lazy" alt="" src="${esc(tImg(imgUrl(a.featured_image), 760))}">`
+    ? `<img class="ncover" loading="lazy" decoding="async" alt="" src="${esc(tImg(imgUrl(a.featured_image), 760))}">`
     : `<div class="cover ill-${(Number(a.id) % 6) + 1}"></div>`;
   const nmcls = a.featured_image ? "nmedia nmedia--img" : "nmedia";
   return `<a class="news-card" href="/article/${encodeURIComponent(a.slug)}/">` +
@@ -72,7 +72,7 @@ function page(a, related) {
   const url = `${SITE}/article/${encodeURIComponent(a.slug)}/`;
   const img = imgUrl(a.featured_image);
   const hero = img
-    ? `<img class="ncover" alt="${esc(title)}" src="${esc(tImg(img, 1280))}">`
+    ? `<img class="ncover" decoding="async" alt="${esc(title)}" src="${esc(tImg(img, 1280))}">`
     : `<div class="cover ill-${(Number(a.id) % 6) + 1}"></div>`;
   const heroCls = img ? "article-hero article-hero--img reveal" : "article-hero reveal";
   const ld = {
@@ -87,6 +87,10 @@ function page(a, related) {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://api.ulagattyustaz.kz" crossorigin>
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#2aa564">
+<script>try{if(localStorage.uu_theme==='dark')document.documentElement.setAttribute('data-theme','dark')}catch(e){}</script>
 <title>${esc(title)} — Ұлағатты Ұстаз.kz</title>
 <meta name="description" content="${esc(desc || title)}">
 <meta name="keywords" content="${esc(title)}, педагог мақаласы, ${esc(CAT_LABEL[b])}, Ұлағатты Ұстаз">
@@ -123,6 +127,13 @@ ${img ? `<meta property="og:image" content="${esc(img)}">` : ""}
       </div>
       <div class="${heroCls}">${hero}</div>
       <div class="article-body reveal">${a.content || ""}</div>
+      <div class="share-row reveal">
+        <b>Бөлісу:</b>
+        <a href="#" aria-label="Telegram"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21.9 4.3L2.9 11.7c-1.3.5-1.3 1.3-.2 1.6l4.8 1.5 1.9 5.8c.2.6.4.8.9.8.3 0 .5-.1.7-.3l2.6-2.5 4.8 3.6c.9.5 1.5.2 1.7-.8l3.1-14.6c.3-1.3-.5-1.9-1.1-1.1z"/></svg></a>
+        <a href="#" aria-label="WhatsApp"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 00-8.6 15l-1.4 5 5.1-1.3A10 10 0 1012 2zm0 2a8 8 0 11-4.3 14.7l-.3-.2-3 .8.8-2.9-.2-.3A8 8 0 0112 4z"/></svg></a>
+        <a href="#" aria-label="Facebook"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 9h3V6h-3c-2 0-3 1-3 3v2H9v3h2v6h3v-6h2.5l.5-3H14v-1.5c0-.8.2-1 1-1z"/></svg></a>
+        <a href="#" aria-label="Copy link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg></a>
+      </div>
       <div class="sec-title reveal" style="margin-top:40px"><h2 style="font-size:1.4rem">Ұқсас материалдар</h2></div>
       <div class="feed feed--3 reveal">${related.map(cardHtml).join("")}</div>
       <p style="margin-top:30px"><a href="/" class="link-arrow">← Басты бетке</a></p>

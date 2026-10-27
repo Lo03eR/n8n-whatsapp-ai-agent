@@ -100,7 +100,7 @@
   function media(article, withCat) {
     var cover, cls = "";
     if (article.featured_image) {
-      cover = '<img class="ncover" loading="lazy" alt="" src="' + tImg(String(article.featured_image), 760).replace(/"/g, "%22") + '">';
+      cover = '<img class="ncover" loading="lazy" decoding="async" alt="" src="' + tImg(String(article.featured_image), 760).replace(/"/g, "%22") + '">';
       cls = " nmedia--img";
     } else {
       cover = '<div class="cover ' + illFor(article) + '"></div>';
@@ -179,7 +179,7 @@
     });
 
     // «Көп оқылған» (просто первые по списку)
-    fillPopular(list.slice(0, 5));
+    fillPopular(topByViews(list, 5));
   }
 
   function fillFeed(box, items, withCat) {
@@ -207,16 +207,28 @@
   }
 
   /* ---- страница категории ---- */
+  function topByViews(list, n) {
+    return list.slice().sort(function (a, b) { return (b.views || 0) - (a.views || 0); }).slice(0, n);
+  }
+
   function renderCategory(list) {
     var box = document.querySelector('[data-feed="category"]');
     if (!box) return;
-    var c = new URLSearchParams(location.search).get("c") || "all";
-    var items = (c === "all")
-      ? list
-      : list.filter(function (a) { return bucketOf(a) === c; });
-    if (!items.length) items = list;
+    var params = new URLSearchParams(location.search);
+    var q = (params.get("q") || "").trim().toLowerCase();
+    var c = params.get("c") || "all";
+    var items;
+    if (q) {
+      // поиск по заголовку
+      items = list.filter(function (a) { return stripTags(a.title).toLowerCase().indexOf(q) !== -1; });
+      var h = document.querySelector('[data-page="category"] h1, .page-hero h1');
+      if (h) h.textContent = (window.UU_LANG === "ru" ? "Поиск: " : "Іздеу: ") + "«" + params.get("q") + "» — " + items.length;
+    } else {
+      items = (c === "all") ? list : list.filter(function (a) { return bucketOf(a) === c; });
+      if (!items.length) items = list;
+    }
     fillFeed(box, items, true);
-    fillPopular(list.slice(0, 4));
+    fillPopular(topByViews(list, 4));
   }
 
   /* ---- страница статьи ---- */
@@ -279,7 +291,7 @@
     var hero = document.getElementById("artHero");
     if (hero) {
       if (art.featured_image) {
-        hero.innerHTML = '<img class="ncover" alt="" src="' + tImg(String(art.featured_image), 1280).replace(/"/g, "%22") + '">';
+        hero.innerHTML = '<img class="ncover" decoding="async" alt="" src="' + tImg(String(art.featured_image), 1280).replace(/"/g, "%22") + '">';
         hero.classList.add("article-hero--img");
       } else {
         hero.innerHTML = '<div class="cover ' + illFor(art) + '"></div>';
@@ -327,6 +339,29 @@
       list.forEach(function (a) { if (a !== art && related.indexOf(a) === -1 && related.length < 3) related.push(a); });
     }
     fillFeed(document.querySelector('[data-feed="related"]'), related, false);
+
+    // ---- кнопки «Поделиться» ----
+    (function () {
+      var shareUrl = "https://ulagattyustaz.kz/article/" + encodeURIComponent(art.slug || "") + "/";
+      var eu = encodeURIComponent(shareUrl), et = encodeURIComponent(plainTitle);
+      var map = {
+        "Telegram": "https://t.me/share/url?url=" + eu + "&text=" + et,
+        "WhatsApp": "https://wa.me/?text=" + encodeURIComponent(plainTitle + " " + shareUrl),
+        "Facebook": "https://www.facebook.com/sharer/sharer.php?u=" + eu,
+      };
+      document.querySelectorAll(".share-row a").forEach(function (a) {
+        var k = a.getAttribute("aria-label");
+        if (map[k]) { a.href = map[k]; a.target = "_blank"; a.rel = "noopener noreferrer"; }
+        else if (k === "Copy link") {
+          a.href = shareUrl;
+          a.addEventListener("click", function (e) {
+            e.preventDefault();
+            var done = function () { a.classList.add("copied"); setTimeout(function () { a.classList.remove("copied"); }, 1500); };
+            if (navigator.clipboard) navigator.clipboard.writeText(shareUrl).then(done).catch(done); else done();
+          });
+        }
+      });
+    })();
 
     if (window.applyI18n) window.applyI18n();
   }
