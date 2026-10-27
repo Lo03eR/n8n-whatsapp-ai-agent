@@ -9,8 +9,8 @@
    UU_WA_URL  — ссылка на WhatsApp. Пока пусто — кнопка ведёт на «Контакты».
    Примеры:
        window.UU_BOT_URL = "https://t.me/ulagatty_bot";
-       window.UU_WA_URL  = "https://wa.me/77006464486";
+       window.UU_WA_URL  = "https://wa.me/77028990735";
    ============================================================ */
 window.UU_API = "https://api.ulagattyustaz.kz";
 window.UU_BOT_URL = "";                       // впиши ссылку на бота: https://t.me/ИМЯ_бота
-window.UU_WA_URL = "https://wa.me/77006464486";
+window.UU_WA_URL = "https://wa.me/77028990735";
