@@ -122,4 +122,59 @@
 
   const y = document.getElementById("year");
   if (y) y.textContent = new Date().getFullYear();
+
+  // ---------- UX-полировка: плавные картинки, прогресс чтения, «наверх» ----------
+  // 1) плавное появление картинок (.ncover) по мере загрузки
+  function markLoaded(img) {
+    if (img.dataset.ld) return; img.dataset.ld = "1";
+    if (img.complete && img.naturalWidth) { img.classList.add("is-loaded"); return; }
+    img.classList.add("img-fade");
+    img.addEventListener("load", function () { img.classList.add("is-loaded"); }, { once: true });
+    img.addEventListener("error", function () {
+      // если уменьшенная/WebP-версия не отдалась — откат на оригинал
+      if (!img.dataset.fb && img.src.indexOf("format=webp") >= 0) { img.dataset.fb = "1"; img.src = img.src.split("?")[0]; return; }
+      img.classList.add("is-loaded");
+    });
+  }
+  function scanImgs(root) { (root.querySelectorAll ? root.querySelectorAll("img.ncover") : []).forEach(markLoaded); }
+  scanImgs(document);
+  try {
+    new MutationObserver(function (muts) {
+      muts.forEach(function (m) { m.addedNodes.forEach(function (n) {
+        if (n.nodeType !== 1) return;
+        if (n.matches && n.matches("img.ncover")) markLoaded(n);
+        scanImgs(n);
+      }); });
+    }).observe(document.body, { childList: true, subtree: true });
+  } catch (e) {}
+
+  // 2) кнопка «наверх» (на всех страницах)
+  var toTop = document.createElement("button");
+  toTop.id = "toTop"; toTop.setAttribute("aria-label", "Жоғары / Наверх");
+  toTop.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>';
+  toTop.addEventListener("click", function () { window.scrollTo({ top: 0, behavior: "smooth" }); });
+  document.body.appendChild(toTop);
+
+  // 3) полоса прогресса чтения — только на странице статьи
+  var readbar = null;
+  if (document.body.getAttribute("data-page") === "article") {
+    readbar = document.createElement("div"); readbar.id = "readbar";
+    document.body.appendChild(readbar);
+  }
+
+  var ticking = false;
+  function onScroll() {
+    if (ticking) return; ticking = true;
+    requestAnimationFrame(function () {
+      var sc = window.pageYOffset || document.documentElement.scrollTop;
+      toTop.classList.toggle("show", sc > 400);
+      if (readbar) {
+        var h = document.documentElement.scrollHeight - window.innerHeight;
+        readbar.style.width = (h > 0 ? Math.min(100, (sc / h) * 100) : 0) + "%";
+      }
+      ticking = false;
+    });
+  }
+  window.addEventListener("scroll", onScroll, { passive: true });
+  onScroll();
 })();

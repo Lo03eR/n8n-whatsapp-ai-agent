@@ -38,6 +38,8 @@ function bucketOf(cats) {
   return "other";
 }
 const imgUrl = (id) => (id ? DPUB + "/assets/" + id : null);
+// уменьшенная/WebP-версия (быстрее грузится)
+const tImg = (url, w) => (url ? url + (url.includes("?") ? "&" : "?") + "width=" + w + "&quality=72&format=webp" : url);
 // положение/размер обложки (поля img_*) → CSS-переменные, раздельно ПК/телефон
 const san = (v) => String(v || "").replace(/[^a-z0-9%.\s-]/gi, "").trim();
 const imgStyle = (a) => {
@@ -54,7 +56,7 @@ const EYE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-w
 function cardHtml(a) {
   const b = bucketOf(a.categories);
   const cover = a.featured_image
-    ? `<img class="ncover" loading="lazy" alt="" src="${esc(imgUrl(a.featured_image))}">`
+    ? `<img class="ncover" loading="lazy" alt="" src="${esc(tImg(imgUrl(a.featured_image), 760))}">`
     : `<div class="cover ill-${(Number(a.id) % 6) + 1}"></div>`;
   const nmcls = a.featured_image ? "nmedia nmedia--img" : "nmedia";
   return `<a class="news-card" href="/article/${encodeURIComponent(a.slug)}/">` +
@@ -70,7 +72,7 @@ function page(a, related) {
   const url = `${SITE}/article/${encodeURIComponent(a.slug)}/`;
   const img = imgUrl(a.featured_image);
   const hero = img
-    ? `<img class="ncover" loading="lazy" alt="${esc(title)}" src="${esc(img)}">`
+    ? `<img class="ncover" alt="${esc(title)}" src="${esc(tImg(img, 1280))}">`
     : `<div class="cover ill-${(Number(a.id) % 6) + 1}"></div>`;
   const heroCls = img ? "article-hero article-hero--img reveal" : "article-hero reveal";
   const ld = {

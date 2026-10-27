@@ -46,7 +46,8 @@
 /* ---------- Reset ---------- */
 *, *::before, *::after { box-sizing: border-box; }
 * { margin: 0; }
-html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; overflow-x: clip; }
+body { overflow-x: clip; }
 body {
   font-family: var(--font);
   color: var(--ink);
@@ -628,3 +629,49 @@ h3.title { font-size: clamp(1.3rem, 2.4vw, 1.7rem); }
   .side-list { flex-direction: column; }
   .side-item { min-width: 0; }
 }
+
+/* ============================================================
+   Полировка: мобильная шапка, плавная загрузка картинок,
+   прогресс чтения, кнопка «наверх».
+   ============================================================ */
+
+/* --- мобильная шапка: всё помещается, без горизонтального скролла --- */
+@media (max-width: 560px) {
+  .header-inner { gap: 10px; }
+  .brand { min-width: 0; gap: 9px; }
+  .brand__mark { width: 38px; height: 38px; }
+  .brand__name { font-size: .98rem; }
+  .brand__name small { font-size: .55rem; letter-spacing: .12em; }
+  .lang-switch button { padding: 6px 9px; font-size: .78rem; }
+  .header-actions { gap: 6px; }
+}
+@media (max-width: 380px) {
+  .brand__name small { display: none; }   /* на узких экранах убираем подзаголовок */
+  .brand__name { font-size: .92rem; }
+}
+
+/* --- плавное появление картинок (без «мигания» пустого места) --- */
+/* по умолчанию видимы (на случай отключённого JS); JS добавляет .img-fade для анимации */
+.ncover { transition: opacity .45s ease; background: #eef1f4; }
+.ncover.img-fade { opacity: 0; }
+.ncover.is-loaded { opacity: 1; }
+
+/* --- тонкая полоса прогресса чтения статьи (сверху) --- */
+#readbar {
+  position: fixed; top: 0; left: 0; height: 3px; width: 0;
+  background: linear-gradient(90deg, var(--green-500), var(--gold-500));
+  z-index: 200; transition: width .1s linear; pointer-events: none;
+}
+
+/* --- кнопка «наверх» --- */
+#toTop {
+  position: fixed; right: 18px; bottom: 18px; width: 46px; height: 46px;
+  border: none; border-radius: 50%; background: var(--green-600); color: #fff;
+  box-shadow: var(--shadow); cursor: pointer; display: grid; place-items: center;
+  opacity: 0; transform: translateY(12px); pointer-events: none;
+  transition: opacity .25s, transform .25s, background .2s; z-index: 150;
+}
+#toTop.show { opacity: 1; transform: none; pointer-events: auto; }
+#toTop:hover { background: var(--green-800); }
+#toTop svg { width: 22px; height: 22px; }
+@media (max-width: 560px){ #toTop { right: 14px; bottom: 14px; width: 42px; height: 42px; } }

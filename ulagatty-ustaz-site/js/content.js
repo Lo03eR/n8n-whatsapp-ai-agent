@@ -77,6 +77,12 @@
     return n >= 1000 ? (n / 1000).toFixed(n >= 10000 ? 0 : 1).replace(".0", "") + "k" : String(n);
   }
 
+  /* уменьшенная/WebP-версия картинки через трансформации Directus (быстрее грузится) */
+  function tImg(url, w) {
+    if (!url) return url;
+    return url + (url.indexOf("?") >= 0 ? "&" : "?") + "width=" + w + "&quality=72&format=webp";
+  }
+
   /* положение/размер обложки из Directus (раздельно ПК/телефон) → CSS-переменные.
      Значения из выпадашек; на всякий случай чистим от посторонних символов. */
   function imgStyle(a) {
@@ -94,7 +100,7 @@
   function media(article, withCat) {
     var cover, cls = "";
     if (article.featured_image) {
-      cover = '<img class="ncover" loading="lazy" alt="" src="' + String(article.featured_image).replace(/"/g, "%22") + '">';
+      cover = '<img class="ncover" loading="lazy" alt="" src="' + tImg(String(article.featured_image), 760).replace(/"/g, "%22") + '">';
       cls = " nmedia--img";
     } else {
       cover = '<div class="cover ' + illFor(article) + '"></div>';
@@ -131,7 +137,7 @@
         var b = bucketOf(art);
         var i18nKey = { ustaz: "sec.ustaz", school: "sec.school", tarbie: "sec.tarbie", method: "sec.method", other: "sec.allnews" }[b];
         var cover = art.featured_image
-          ? '<div class="cover" style="background-image:url(\'' + String(art.featured_image).replace(/'/g, "%27") + '\');' + imgStyle(art) + '"></div>'
+          ? '<div class="cover" style="background-image:url(\'' + tImg(String(art.featured_image), 1100).replace(/'/g, "%27") + '\');' + imgStyle(art) + '"></div>'
           : '<div class="cover ' + illFor(art) + '"></div>';
         var a = document.createElement("a");
         a.className = "slide";
@@ -153,7 +159,7 @@
         a.className = "side-item";
         a.href = hrefFor(art);
         var thumb = art.featured_image
-          ? '<span class="sthumb" style="background-image:url(\'' + String(art.featured_image).replace(/'/g, "%27") + '\');' + imgStyle(art) + '"></span>'
+          ? '<span class="sthumb" style="background-image:url(\'' + tImg(String(art.featured_image), 240).replace(/'/g, "%27") + '\');' + imgStyle(art) + '"></span>'
           : '<span class="sthumb ' + illFor(art) + '"></span>';
         a.innerHTML = thumb + "<div><h4>" + safeTitle(art.title) + '</h4><div class="sdate">' + fmtDate(art.date) + "</div></div>";
         side.appendChild(a);
@@ -273,7 +279,7 @@
     var hero = document.getElementById("artHero");
     if (hero) {
       if (art.featured_image) {
-        hero.innerHTML = '<img class="ncover" loading="lazy" alt="" src="' + String(art.featured_image).replace(/"/g, "%22") + '">';
+        hero.innerHTML = '<img class="ncover" alt="" src="' + tImg(String(art.featured_image), 1280).replace(/"/g, "%22") + '">';
         hero.classList.add("article-hero--img");
       } else {
         hero.innerHTML = '<div class="cover ' + illFor(art) + '"></div>';
