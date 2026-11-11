@@ -121,7 +121,6 @@ ${img ? `<meta property="og:image" content="${esc(img)}">` : ""}
       <span class="eyebrow reveal" style="margin:14px 0 10px">${esc(CAT_LABEL[b])}</span>
       <h1 class="reveal" style="font-size:clamp(1.7rem,4vw,2.6rem);line-height:1.2">${esc(title)}</h1>
       <div class="article-meta reveal" style="margin-top:16px">
-        ${a.author ? `<span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>${esc(a.author)}</span>` : ""}
         <span>${CAL}${fmtDate(a.date_published)}</span>
         <span>${EYE}<b>${Number(a.views) || 0}</b> қаралым</span>
       </div>
@@ -159,7 +158,7 @@ fetch(API+"/items/articles/"+id,{method:"PATCH",headers:{"Content-Type":"applica
 // ---- данные ----
 let arts = [];
 try {
-  const r = await fetch(D + "/items/articles?filter[status][_eq]=published&sort=-date_published&fields=id,title,slug,date_published,categories,content,featured_image,author,views,img_pos,img_size,img_pos_mobile,img_size_mobile&limit=2000");
+  const r = await fetch(D + "/items/articles?filter[status][_eq]=published&sort=-date_published&fields=id,title,slug,date_published,categories,content,featured_image,views,img_pos,img_size,img_pos_mobile,img_size_mobile&limit=2000");
   const j = await r.json();
   arts = (j.data || []).filter((a) => a.slug);
 } catch (e) { console.error("Directus error:", e.message); process.exit(1); }
