@@ -54,5 +54,8 @@ services:
       DIRECTUS_URL: "http://directus:8055"
       DIRECTUS_TOKEN: "${DIRECTUS_TOKEN}"
       SITE_URL: "${SITE_ORIGIN}"
+      DEFAULT_PRICE: "${DEFAULT_PRICE:-1000}"
+      DEFAULT_KASPI_NUMBER: "${DEFAULT_KASPI_NUMBER}"
+      DEFAULT_KASPI_NAME: "${DEFAULT_KASPI_NAME}"
     mem_limit: 150m
     mem_reservation: 60m

@@ -18,7 +18,7 @@ import { Telegraf, Scenes, session, Markup } from "telegraf";
 import { makeCertificatePdf, genCertNumber } from "./certificate.mjs";
 
 const BOT_TOKEN  = process.env.BOT_TOKEN;
-const ADMIN_CHAT = process.env.ADMIN_CHAT_ID || "5478445096"; // клиент (можно переопределить в .env)
+const ADMIN_CHAT = process.env.ADMIN_CHAT_ID || "";
 const D_URL      = (process.env.DIRECTUS_URL || "http://directus:8055").replace(/\/+$/, "");
 const D_TOKEN    = process.env.DIRECTUS_TOKEN || "";
 const SITE_URL   = (process.env.SITE_URL || "https://ulagattyustaz.kz").replace(/\/+$/, "");
@@ -216,7 +216,7 @@ const adminMenu = (lang) => Markup.keyboard([
 
 // ---------- настройки портала (цена, реквизиты Kaspi) ----------
 const SETTINGS = "/data/settings.json";
-let settings = { price: "1000", kaspi_number: "87476341495", kaspi_name: "Гүлжаухар Н" };
+let settings = { price: process.env.DEFAULT_PRICE || "1000", kaspi_number: process.env.DEFAULT_KASPI_NUMBER || "", kaspi_name: process.env.DEFAULT_KASPI_NAME || "" };
 try { settings = { ...settings, ...JSON.parse(fs.readFileSync(SETTINGS, "utf8")) }; } catch {}
 function saveSettings() { try { fs.mkdirSync("/data", { recursive: true }); fs.writeFileSync(SETTINGS, JSON.stringify(settings)); } catch (e) { console.error(e); } }
 
@@ -236,11 +236,22 @@ async function dFetch(path, opts = {}) {
   if (!r.ok) throw new Error(`Directus ${r.status}: ${await r.text()}`);
   return r.json();
 }
+const ALLOWED_EXT = new Set(["pdf", "jpg", "jpeg", "png", "webp", "doc", "docx"]);
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+
 async function uploadTelegramFile(ctx, fileId, filename) {
+  const ext = (filename || "").split(".").pop().toLowerCase();
+  if (!ALLOWED_EXT.has(ext)) {
+    throw new Error(`Недопустимый тип файла: .${ext}`);
+  }
+  const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, "_").slice(0, 200);
   const link = await ctx.telegram.getFileLink(fileId);
   const buf = Buffer.from(await (await fetch(link.href)).arrayBuffer());
+  if (buf.length > MAX_FILE_SIZE) {
+    throw new Error(`Файл слишком большой: ${(buf.length / 1024 / 1024).toFixed(1)} МБ (макс. 10 МБ)`);
+  }
   const fd = new FormData();
-  fd.append("file", new Blob([buf]), filename);
+  fd.append("file", new Blob([buf]), safeName);
   const j = await fetch(`${D_URL}/files`, { method: "POST", headers: { Authorization: `Bearer ${D_TOKEN}` }, body: fd });
   if (!j.ok) throw new Error(`Directus upload ${j.status}: ${await j.text()}`);
   return (await j.json()).data.id;
