@@ -1,0 +1,188 @@
+// ============================================================
+//  prerender.mjs — генерирует СТАТИЧЕСКИЕ HTML-страницы статей
+//  (для SEO: полный текст и мета прямо в HTML) + sitemap.xml.
+//
+//  Пишет:  /out/article/<slug>/index.html  →  URL  /article/<slug>/
+//          /out/sitemap.xml
+//
+//  Env:
+//    DIRECTUS_URL     внутренний адрес Directus (http://directus:8055)
+//    DIRECTUS_PUBLIC  публичный адрес API для картинок (https://api.ulagattyustaz.kz)
+//    SITE_URL         адрес сайта (https://ulagattyustaz.kz)
+//    OUT_DIR          корень сайта (/out)
+//  Запуск — см. backend/SEO.md.
+// ============================================================
+import fs from "fs";
+import path from "path";
+
+const D = (process.env.DIRECTUS_URL || "http://directus:8055").replace(/\/+$/, "");
+const DPUB = (process.env.DIRECTUS_PUBLIC || "https://api.ulagattyustaz.kz").replace(/\/+$/, "");
+const SITE = (process.env.SITE_URL || "https://ulagattyustaz.kz").replace(/\/+$/, "");
+const OUT = process.env.OUT_DIR || "/out";
+
+const CAT_RULES = {
+  ustaz:  ["ұстаз", "устаз", "ustaz", "педагог", "мұғалім", "мугалим", "учитель"],
+  school: ["мектеп", "mektep", "школ", "білім ордас", "тыныс"],
+  tarbie: ["тәрбие", "тарбие", "tarbie", "рухани", "воспит", "құттықтау", "мереке"],
+  method: ["әдісте", "adiste", "метод", "сабақ", "технолог", "сауаттыл"],
+};
+const CAT_LABEL = { ustaz: "Ұстаз", school: "Мектеп тынысы", tarbie: "Тәрбие", method: "Әдістеме", other: "Жаңалықтар" };
+
+const strip = (s) => String(s || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+const fmtDate = (iso) => { if (!iso) return ""; const d = new Date(iso); if (isNaN(d)) return ""; const p = (n) => String(n).padStart(2, "0"); return p(d.getDate()) + "." + p(d.getMonth() + 1) + "." + d.getFullYear(); };
+
+function bucketOf(cats) {
+  const s = (cats || []).join(" ").toLowerCase();
+  for (const k in CAT_RULES) for (const m of CAT_RULES[k]) if (s.indexOf(m) !== -1) return k;
+  return "other";
+}
+const imgUrl = (id) => (id ? DPUB + "/assets/" + id : null);
+// уменьшенная/WebP-версия (быстрее грузится)
+const tImg = (url, w) => (url ? url + (url.includes("?") ? "&" : "?") + "width=" + w + "&quality=72&format=webp" : url);
+// положение/размер обложки (поля img_*) → CSS-переменные, раздельно ПК/телефон
+const san = (v) => String(v || "").replace(/[^a-z0-9%.\s-]/gi, "").trim();
+const imgStyle = (a) => {
+  let s = "";
+  if (san(a.img_pos)) s += `--imgpos:${san(a.img_pos)};`;
+  if (san(a.img_size)) s += `--imgsize:${san(a.img_size)};`;
+  if (san(a.img_pos_mobile)) s += `--imgpos-m:${san(a.img_pos_mobile)};`;
+  if (san(a.img_size_mobile)) s += `--imgsize-m:${san(a.img_size_mobile)};`;
+  return s;
+};
+const CAL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>';
+const EYE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+
+function cardHtml(a) {
+  const b = bucketOf(a.categories);
+  const cover = a.featured_image
+    ? `<img class="ncover" loading="lazy" decoding="async" alt="" src="${esc(tImg(imgUrl(a.featured_image), 760))}">`
+    : `<div class="cover ill-${(Number(a.id) % 6) + 1}"></div>`;
+  const nmcls = a.featured_image ? "nmedia nmedia--img" : "nmedia";
+  return `<a class="news-card" href="/article/${encodeURIComponent(a.slug)}/">` +
+    `<div class="${nmcls}">${cover}<span class="ncat">${esc(CAT_LABEL[b])}</span></div>` +
+    `<div class="nbody"><h3>${esc(strip(a.title))}</h3>` +
+    `<span class="ndate">${CAL}${fmtDate(a.date_published)}</span></div></a>`;
+}
+
+function page(a, related) {
+  const title = strip(a.title);
+  const b = bucketOf(a.categories);
+  const desc = strip(a.content).slice(0, 180);
+  const url = `${SITE}/article/${encodeURIComponent(a.slug)}/`;
+  const img = imgUrl(a.featured_image);
+  const hero = img
+    ? `<img class="ncover" decoding="async" alt="${esc(title)}" src="${esc(tImg(img, 1280))}">`
+    : `<div class="cover ill-${(Number(a.id) % 6) + 1}"></div>`;
+  const heroCls = img ? "article-hero article-hero--img reveal" : "article-hero reveal";
+  const ld = {
+    "@context": "https://schema.org", "@type": "NewsArticle", headline: title,
+    datePublished: a.date_published || undefined, author: { "@type": "Organization", name: "Ұлағатты Ұстаз.kz" },
+    publisher: { "@type": "Organization", name: "Ұлағатты Ұстаз.kz" }, mainEntityOfPage: url,
+  };
+  if (img) ld.image = [img];
+
+  return `<!DOCTYPE html>
+<html lang="kk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="preconnect" href="https://api.ulagattyustaz.kz" crossorigin>
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#2aa564">
+<script>try{if(localStorage.uu_theme==='dark')document.documentElement.setAttribute('data-theme','dark')}catch(e){}</script>
+<title>${esc(title)} — Ұлағатты Ұстаз.kz</title>
+<meta name="description" content="${esc(desc || title)}">
+<meta name="keywords" content="${esc(title)}, педагог мақаласы, ${esc(CAT_LABEL[b])}, Ұлағатты Ұстаз">
+<link rel="canonical" href="${esc(url)}">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Ұлағатты Ұстаз.kz">
+<meta property="og:title" content="${esc(title)}">
+<meta property="og:description" content="${esc(desc || title)}">
+<meta property="og:url" content="${esc(url)}">
+${img ? `<meta property="og:image" content="${esc(img)}">` : ""}
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/css/styles.css">
+<noscript><style>.reveal{opacity:1;transform:none}</style></noscript>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<script type="application/ld+json">${JSON.stringify(ld)}</script>
+</head>
+<body data-page="article">
+<div id="site-header"></div>
+<main class="section">
+  <div class="container">
+    <div class="article-wrap">
+      <div class="breadcrumbs reveal"><a href="/">Басты</a> / <a href="/category.html?c=${b === "other" ? "" : b}">${esc(CAT_LABEL[b])}</a> / <span>${esc(title.slice(0, 40))}</span></div>
+      <span class="eyebrow reveal" style="margin:14px 0 10px">${esc(CAT_LABEL[b])}</span>
+      <h1 class="reveal" style="font-size:clamp(1.7rem,4vw,2.6rem);line-height:1.2">${esc(title)}</h1>
+      <div class="article-meta reveal" style="margin-top:16px">
+        <span>${CAL}${fmtDate(a.date_published)}</span>
+        <span>${EYE}<b>${Number(a.views) || 0}</b> қаралым</span>
+      </div>
+      <div class="${heroCls}">${hero}</div>
+      <div class="article-body reveal">${a.content || ""}</div>
+      <div class="share-row reveal">
+        <b>Бөлісу:</b>
+        <a href="#" aria-label="Telegram"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M21.9 4.3L2.9 11.7c-1.3.5-1.3 1.3-.2 1.6l4.8 1.5 1.9 5.8c.2.6.4.8.9.8.3 0 .5-.1.7-.3l2.6-2.5 4.8 3.6c.9.5 1.5.2 1.7-.8l3.1-14.6c.3-1.3-.5-1.9-1.1-1.1z"/></svg></a>
+        <a href="#" aria-label="WhatsApp"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a10 10 0 00-8.6 15l-1.4 5 5.1-1.3A10 10 0 1012 2zm0 2a8 8 0 11-4.3 14.7l-.3-.2-3 .8.8-2.9-.2-.3A8 8 0 0112 4z"/></svg></a>
+        <a href="#" aria-label="Facebook"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 9h3V6h-3c-2 0-3 1-3 3v2H9v3h2v6h3v-6h2.5l.5-3H14v-1.5c0-.8.2-1 1-1z"/></svg></a>
+        <a href="#" aria-label="Copy link"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg></a>
+      </div>
+      <div class="sec-title reveal" style="margin-top:40px"><h2 style="font-size:1.4rem">Ұқсас материалдар</h2></div>
+      <div class="feed feed--3 reveal">${related.map(cardHtml).join("")}</div>
+      <p style="margin-top:30px"><a href="/" class="link-arrow">← Басты бетке</a></p>
+    </div>
+  </div>
+</main>
+<div id="site-footer"></div>
+<script src="/js/config.js"></script>
+<script src="/js/i18n.js"></script>
+<script src="/js/layout.js"></script>
+<script src="/js/main.js"></script>
+<script src="/js/cookie.js"></script>
+<script>
+(function(){var API=(window.UU_API||"").replace(/\\/+$/,"");var id=${Number(a.id) || 0};if(!API||!id)return;
+try{var k="seen_"+id;if(sessionStorage.getItem(k))return;sessionStorage.setItem(k,"1");}catch(e){}
+fetch(API+"/items/articles/"+id,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({views:${Number(a.views) || 0}+1})}).catch(function(){});})();
+</script>
+</body>
+</html>
+`;
+}
+
+// ---- данные ----
+let arts = [];
+try {
+  const r = await fetch(D + "/items/articles?filter[status][_eq]=published&sort=-date_published&fields=id,title,slug,date_published,categories,content,featured_image,views,img_pos,img_size,img_pos_mobile,img_size_mobile&limit=2000");
+  const j = await r.json();
+  arts = (j.data || []).filter((a) => a.slug);
+} catch (e) { console.error("Directus error:", e.message); process.exit(1); }
+
+// ---- генерация страниц ----
+let n = 0;
+for (const a of arts) {
+  const related = arts.filter((x) => x !== a && bucketOf(x.categories) === bucketOf(a.categories)).slice(0, 3);
+  while (related.length < 3) { const extra = arts.find((x) => x !== a && !related.includes(x)); if (!extra) break; related.push(extra); }
+  const dir = path.join(OUT, "article", a.slug);
+  fs.mkdirSync(dir, { recursive: true });
+  fs.writeFileSync(path.join(dir, "index.html"), page(a, related));
+  n++;
+}
+
+// ---- sitemap.xml (чистые адреса) ----
+const statics = ["/", "/category.html", "/contact.html", "/certificate.html", "/privacy.html", "/terms.html",
+  "/category.html?c=ustaz", "/category.html?c=school", "/category.html?c=tarbie", "/category.html?c=method"];
+const xmlEsc = (s) => String(s).replace(/&/g, "&amp;");
+const urls = [
+  ...statics.map((u) => `  <url><loc>${xmlEsc(SITE + u)}</loc></url>`),
+  ...arts.map((a) => `  <url><loc>${xmlEsc(SITE + "/article/" + encodeURIComponent(a.slug) + "/")}</loc><lastmod>${new Date(a.date_published || Date.now()).toISOString().slice(0, 10)}</lastmod></url>`),
+];
+fs.writeFileSync(path.join(OUT, "sitemap.xml"),
+  `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls.join("\n")}\n</urlset>\n`);
+
+console.log(`Готово ✅  статей: ${n}, sitemap: ${urls.length} URL`);
